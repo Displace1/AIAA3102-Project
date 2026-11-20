@@ -1,0 +1,16 @@
+{
+  "selected_experiment": "exp_006",
+  "adapter_name": "text_pair_char_tfidf_logistic",
+  "model_path": "D:\\python_project\\superagent_project\\runs\\released_task_2_20261118_191858_463474\\final\\final_model.joblib",
+  "model_sha256": "416922ff5ab9bc548e2c973b16e320979ad844cc92281b06eea14c82b6aa9b51",
+  "input_path": "D:\\python_project\\Released_Task2-Headlines_CTR\\Released_Task2-Headlines_CTR\\val.csv",
+  "input_sha256": "155b4c658c5308af5af5db38009c513d2888a13ea981c2471102cf00db056a14",
+  "prediction_count": 940,
+  "predictions_csv_path": "D:\\python_project\\superagent_project\\prediction_smoke\\task2\\predictions.csv",
+  "predictions_csv_sha256": "9fac780da9d09040a4b133852d05051e286ea4b0b9423644c4692a619f3964da",
+  "predictions_npy_path": "D:\\python_project\\superagent_project\\prediction_smoke\\task2\\predictions.npy",
+  "predictions_npy_sha256": "b65899a6f1cec0057744c8b8fc04b549bb691defe6c73841b14c6e207b21838e",
+  "created_at": "2026-11-18T22:38:17.769859+08:00",
+  "labels_read": false,
+  "llm_called": false
+}

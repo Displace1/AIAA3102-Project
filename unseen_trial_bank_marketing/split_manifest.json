@@ -1,0 +1,82 @@
+{
+  "dataset": "Bank Marketing",
+  "provider": "UCI Machine Learning Repository",
+  "source_url": "https://archive.ics.uci.edu/static/public/222/bank%2Bmarketing.zip",
+  "doi": "10.24432/C5K306",
+  "license": "CC BY 4.0",
+  "raw_archive_sha256": "e0bf5f5de5b846e2f18e9d90606637267d46dfa260e0f17bb12e605db5efbeb4",
+  "raw_csv_sha256": "d1513ec63b385506f7cfce9f2c5caa9fe99e7ba4e8c3fa264b3aaf0f849ed32d",
+  "classification_task": "Predict whether a bank client subscribes to a term deposit.",
+  "target_column": "y",
+  "label_mapping": {
+    "no": 0,
+    "yes": 1
+  },
+  "feature_names": [
+    "age",
+    "job",
+    "marital",
+    "education",
+    "default",
+    "balance",
+    "housing",
+    "loan",
+    "contact",
+    "day",
+    "month",
+    "duration",
+    "campaign",
+    "pdays",
+    "previous",
+    "poutcome"
+  ],
+  "feature_count": 16,
+  "total_samples": 45211,
+  "split_method": "stratified random 70/15/15",
+  "random_seed": 42,
+  "test_policy": "Test labels are prepared for the final evaluator only and must not be inspected during autonomous model selection.",
+  "splits": {
+    "train": {
+      "samples": 31647,
+      "feature_shape": [
+        31647,
+        16
+      ],
+      "features_path": "D:\\python_project\\unseen_trial_bank_marketing\\data\\C_train.npy",
+      "labels_path": "D:\\python_project\\unseen_trial_bank_marketing\\data\\y_train.npy",
+      "features_sha256": "c2b14ea2f546a2bd3284fc2d311618edd28987966c33f84da1952c9ad0da4d7e",
+      "labels_sha256": "1dda389c11aa063a7348456be7a511a802e89e622d094402f01ffd68b629f89e",
+      "class_distribution": {
+        "no_0": 27944,
+        "yes_1": 3703
+      }
+    },
+    "validation": {
+      "samples": 6782,
+      "feature_shape": [
+        6782,
+        16
+      ],
+      "features_path": "D:\\python_project\\unseen_trial_bank_marketing\\data\\C_val.npy",
+      "labels_path": "D:\\python_project\\unseen_trial_bank_marketing\\data\\y_val.npy",
+      "features_sha256": "f690c832fa3d9f5c2238dbe8870a701601fd6cbeb3c1e88368fd8d90260e0b93",
+      "labels_sha256": "988164815a244bd251aa41d06d62eafa2dd9a08a8e73c91f8497fcb02cffaedb",
+      "class_distribution": {
+        "no_0": 5989,
+        "yes_1": 793
+      }
+    },
+    "test": {
+      "samples": 6782,
+      "feature_shape": [
+        6782,
+        16
+      ],
+      "features_path": "D:\\python_project\\unseen_trial_bank_marketing\\data\\C_test.npy",
+      "labels_path": "D:\\python_project\\unseen_trial_bank_marketing\\data\\y_test.npy",
+      "features_sha256": "3efdf17be48ae7393ab57344c3eb5f6214d6df65c46bddb515e9e635a2286706",
+      "labels_sha256": "4d2bc5122315f4a03ada9095e56e5a0bdd8462a3c441a15f5824bdfe0665ebb4",
+      "class_distribution": "withheld_until_final_evaluation"
+    }
+  }
+}

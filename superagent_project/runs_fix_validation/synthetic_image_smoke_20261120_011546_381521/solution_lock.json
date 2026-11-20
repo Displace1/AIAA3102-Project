@@ -1,0 +1,21 @@
+{
+  "run_type": "development_run",
+  "selected_experiment": "exp_001",
+  "selected_model": "small_cnn",
+  "selection_metric": "accuracy",
+  "validation_metric_value": 1.0,
+  "validation_accuracy": 1.0,
+  "validation_macro_f1": 1.0,
+  "validation_balanced_accuracy": 1.0,
+  "artifact_path": "D:\\python_project\\superagent_project\\runs_fix_validation\\synthetic_image_smoke_20261120_011546_381521\\experiments\\exp_001\\model_package.pt",
+  "selected_automatically": true,
+  "test_used_for_selection": false,
+  "selection_rule": "Highest validation accuracy; shorter training time breaks exact ties.",
+  "stop_reason": "deterministic_mode_completed",
+  "total_experiments": 1,
+  "llm_cost_rmb": "0.00000000",
+  "warnings": [],
+  "solution_locked": true,
+  "locked_at": "2026-11-20T01:15:52.719024+08:00",
+  "test_evaluation_completed": false
+}

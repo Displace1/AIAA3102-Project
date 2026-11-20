@@ -1,0 +1,16 @@
+{
+  "selected_experiment": "exp_002",
+  "adapter_name": "tabular_extra_trees",
+  "model_path": "D:\\python_project\\superagent_project\\runs\\released_task_1_20261118_214850_320186\\final\\final_model.joblib",
+  "model_sha256": "10418a1f30a3c6ca25ae408f534605661b671efa7be40fe4b947a821c92cb1cd",
+  "input_path": "D:\\python_project\\Released_Task1-In_Vehicle_Coupon_Recommendation\\in_vehicle_coupon_recommendation\\C_val.npy",
+  "input_sha256": "55a78d33a2ae4e4adb62ff4129cb2702a71fffb68b20541a2f89fd8e1ead4c55",
+  "prediction_count": 2030,
+  "predictions_csv_path": "D:\\python_project\\superagent_project\\prediction_smoke\\task1\\predictions.csv",
+  "predictions_csv_sha256": "75f14e4d55e1897cb2bb0bfcbaf5d2f35856235da1e0462752c308d558f08616",
+  "predictions_npy_path": "D:\\python_project\\superagent_project\\prediction_smoke\\task1\\predictions.npy",
+  "predictions_npy_sha256": "836155585ab683bc94937acc48450b2d5cd48c0cc1c9ce294c766d133ab7a6fa",
+  "created_at": "2026-11-18T22:37:36.388734+08:00",
+  "labels_read": false,
+  "llm_called": false
+}

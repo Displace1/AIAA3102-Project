@@ -1,0 +1,9 @@
+{
+  "model": "one_hot_logistic_regression",
+  "random_seed": 42,
+  "train_samples": 8117,
+  "validation_samples": 2030,
+  "validation_accuracy": 0.6640394088669951,
+  "test_samples": 2537,
+  "test_accuracy": 0.6744186046511628
+}

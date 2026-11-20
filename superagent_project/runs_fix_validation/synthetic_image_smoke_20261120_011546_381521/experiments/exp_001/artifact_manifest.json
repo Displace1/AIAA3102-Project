@@ -1,0 +1,46 @@
+{
+  "format_version": 1,
+  "artifact_type": "image_classifier",
+  "adapter_name": "image_small_cnn",
+  "architecture": "small_cnn",
+  "model_config": {
+    "image_size": 64,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "epochs": 15,
+    "data_augmentation": true,
+    "early_stopping_patience": 4,
+    "weight_decay": 0.0001,
+    "adapter_name": "image_small_cnn",
+    "architecture": "small_cnn",
+    "number_of_classes": 2,
+    "class_to_index": {
+      "dark": 0,
+      "light": 1
+    },
+    "index_to_class": {
+      "0": "dark",
+      "1": "light"
+    },
+    "random_seed": 42,
+    "device_used": "cuda",
+    "best_epoch": 1,
+    "epochs_completed": 5,
+    "early_stopped": true,
+    "peak_gpu_memory_mb": 56.36181640625
+  },
+  "preprocessing": {
+    "color_mode": "RGB",
+    "image_size": 64,
+    "normalization_mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "normalization_std": [
+      0.229,
+      0.224,
+      0.225
+    ]
+  }
+}

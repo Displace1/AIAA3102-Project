@@ -1,0 +1,1 @@
+{"experiment_id": "exp_001", "adapter_name": "image_small_cnn", "hyperparameters": {"image_size": 64, "batch_size": 32, "learning_rate": 0.001, "epochs": 15, "data_augmentation": true, "early_stopping_patience": 4, "weight_decay": 0.0001}, "reason": "Establish a compact CNN image baseline without external pretrained weights.", "plan_source": "deterministic"}

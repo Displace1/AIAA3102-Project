@@ -1,0 +1,17 @@
+{
+  "run_id": "synthetic_image_smoke_20261120_011546_381521",
+  "task_name": "synthetic_image_smoke",
+  "run_type": "development_run",
+  "config_path": "D:\\python_project\\superagent_project\\configs\\image_smoke.json",
+  "config_sha256": "6424f0fb4c906a341c00b7449746ccdd5b0681f6d08fbd88922c704285de5af1",
+  "started_at": "2026-11-20T01:15:46.382437+08:00",
+  "python_executable": "D:\\python_project\\.venv\\Scripts\\python.exe",
+  "python_version": "3.14.6",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "package_versions": {
+    "numpy": "2.5.5",
+    "scikit_learn": "1.9.1",
+    "joblib": "1.6.0"
+  },
+  "test_evaluation_enabled": false
+}

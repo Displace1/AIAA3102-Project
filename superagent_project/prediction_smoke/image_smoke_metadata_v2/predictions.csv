@@ -1,0 +1,9 @@
+row_id,input_path,prediction,class_name
+0,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\dark\dark_000.png,0,dark
+1,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\dark\dark_001.png,0,dark
+2,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\dark\dark_002.png,0,dark
+3,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\dark\dark_003.png,0,dark
+4,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\light\light_000.png,1,light
+5,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\light\light_001.png,1,light
+6,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\light\light_002.png,1,light
+7,D:\python_project\superagent_project\smoke_data\synthetic_image\validation\light\light_003.png,1,light

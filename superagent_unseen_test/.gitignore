@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+runs/
+smoke_data/
+api_key.txt
+.env
+prediction_smoke/

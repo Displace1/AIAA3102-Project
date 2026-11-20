@@ -1,0 +1,45 @@
+{
+  "experiment_id": "manual_task2_baseline_001",
+  "run_type": "manual_baseline",
+  "task": "headlines_ctr",
+  "task_type": "binary_classification",
+  "modality": "text_pair",
+  "model": "pairwise_tfidf_logistic_regression",
+  "feature_method": "tfidf_A_minus_tfidf_B",
+  "preprocessing": {
+    "lowercase": true,
+    "ngram_range": [1, 2],
+    "min_df": 2,
+    "max_df": 0.98,
+    "max_features": 50000,
+    "sublinear_tf": true
+  },
+  "hyperparameters": {
+    "max_iter": 2000,
+    "random_state": 42
+  },
+  "data": {
+    "train_samples": 8301,
+    "validation_samples": 940,
+    "test_used_for_selection": false
+  },
+  "results": {
+    "validation_accuracy": 0.6829787234042554,
+    "majority_baseline": 0.5117021276595745
+  },
+  "artifacts": {
+    "model": "model.joblib",
+    "validation_predictions": "val_predictions.npy",
+    "metrics": "metrics.json"
+  },
+  "reproducibility": {
+    "model_reload_verified": true,
+    "reloaded_predictions_identical": true
+  },
+  "llm_usage": {
+    "used_during_training": false,
+    "cost_rmb": 0.0
+  },
+  "eligible_as_final_autonomous_result": false,
+  "notes": "Manually developed deterministic baseline for development reference."
+}

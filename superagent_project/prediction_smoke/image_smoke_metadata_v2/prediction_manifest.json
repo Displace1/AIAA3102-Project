@@ -1,0 +1,19 @@
+{
+  "selected_experiment": "exp_001",
+  "adapter_name": "image_small_cnn",
+  "model_path": "D:\\python_project\\superagent_project\\runs\\synthetic_image_smoke_20261119_002232_672195\\final\\final_model.pt",
+  "model_sha256": "862c9154987c0b5eaa536044b07a427f0c55f3a97ed17b5fa868eb1b6f67242f",
+  "input_path": "D:\\python_project\\superagent_project\\smoke_data\\synthetic_image\\validation",
+  "input_kind": "directory",
+  "input_sha256": "3d7dfba2813a95219989d73fed7c5fbbc76b45711de92a7c8c45839d075ea450",
+  "prediction_count": 8,
+  "input_paths_included": true,
+  "class_names_included": true,
+  "predictions_csv_path": "D:\\python_project\\superagent_project\\prediction_smoke\\image_smoke_metadata_v2\\predictions.csv",
+  "predictions_csv_sha256": "85e4eda6d77efe8feecd42314fea0d2dc37413a586aad1c7494f091e8990c01f",
+  "predictions_npy_path": "D:\\python_project\\superagent_project\\prediction_smoke\\image_smoke_metadata_v2\\predictions.npy",
+  "predictions_npy_sha256": "54a804a5ca999b2b0ac42d0159726c98e1023acf5ffaeb56f9c53228fbb60489",
+  "created_at": "2026-11-19T00:34:09.817744+08:00",
+  "labels_read": false,
+  "llm_called": false
+}

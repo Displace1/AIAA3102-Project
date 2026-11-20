@@ -1,0 +1,14 @@
+{
+  "task_name": "synthetic_image_smoke",
+  "status": "completed",
+  "completed_experiment_ids": [
+    "exp_001"
+  ],
+  "in_progress_experiment_id": null,
+  "next_experiment_number": 2,
+  "accumulated_runtime_seconds": 6.353930600002059,
+  "resume_count": 0,
+  "stop_reason": "deterministic_mode_completed",
+  "schema_version": 1,
+  "updated_at": "2026-11-20T01:15:52.724546+08:00"
+}

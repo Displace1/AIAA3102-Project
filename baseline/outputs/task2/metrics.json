@@ -1,0 +1,10 @@
+{
+  "model": "pairwise_tfidf_logistic_regression",
+  "feature_method": "tfidf_A_minus_tfidf_B",
+  "random_seed": 42,
+  "train_samples": 8301,
+  "validation_samples": 940,
+  "validation_accuracy": 0.6829787234042554,
+  "test_samples": 3232,
+  "test_accuracy": 0.661200495049505
+}

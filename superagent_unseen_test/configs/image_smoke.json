@@ -1,0 +1,29 @@
+{
+  "run_type": "development_run",
+  "task": {
+    "name": "synthetic_image_smoke",
+    "metric": "accuracy"
+  },
+  "data": {
+    "format": "image_directory_split",
+    "train_directory": "D:\\python_project\\superagent_project\\smoke_data\\synthetic_image\\train",
+    "validation_directory": "D:\\python_project\\superagent_project\\smoke_data\\synthetic_image\\validation",
+    "test_directory": "D:\\python_project\\superagent_project\\smoke_data\\synthetic_image\\test"
+  },
+  "execution": {
+    "random_seed": 42,
+    "evaluate_test": false,
+    "planner_mode": "deterministic",
+    "initial_deterministic_experiments": 1,
+    "max_experiments": 1,
+    "max_runtime_minutes": 20,
+    "no_improvement_patience": 2,
+    "minimum_improvement": 0.001,
+    "maximum_planner_errors": 2,
+    "maximum_same_experiment_errors": 2,
+    "experiment_timeout_seconds": 600,
+    "maximum_memory_mb": 4096,
+    "maximum_cpu_threads": 2,
+    "resource_poll_interval_seconds": 0.1
+  }
+}

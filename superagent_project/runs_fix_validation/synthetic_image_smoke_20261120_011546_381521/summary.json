@@ -1,0 +1,20 @@
+{
+  "task_name": "synthetic_image_smoke",
+  "run_type": "development_run",
+  "modality": "image",
+  "planner_mode": "deterministic",
+  "selected_experiment": "exp_001",
+  "selected_model": "small_cnn",
+  "selection_metric": "accuracy",
+  "validation_metric_value": 1.0,
+  "validation_accuracy": 1.0,
+  "validation_macro_f1": 1.0,
+  "validation_balanced_accuracy": 1.0,
+  "completed_experiments": 1,
+  "stop_reason": "deterministic_mode_completed",
+  "llm_cost_rmb": "0.00000000",
+  "remaining_budget_rmb": null,
+  "run_directory": "D:\\python_project\\superagent_project\\runs_fix_validation\\synthetic_image_smoke_20261120_011546_381521",
+  "test_evaluated": false,
+  "warnings": []
+}

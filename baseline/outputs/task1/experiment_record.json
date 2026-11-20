@@ -1,0 +1,42 @@
+{
+  "experiment_id": "manual_task1_baseline_001",
+  "run_type": "manual_baseline",
+  "task": "in_vehicle_coupon_recommendation",
+  "task_type": "binary_classification",
+  "modality": "tabular",
+  "model": "one_hot_logistic_regression",
+  "preprocessing": {
+    "all_features_as_categorical": true,
+    "missing_value": "__MISSING__",
+    "encoder": "OneHotEncoder",
+    "handle_unknown": "ignore"
+  },
+  "hyperparameters": {
+    "max_iter": 2000,
+    "random_state": 42
+  },
+  "data": {
+    "train_samples": 8117,
+    "validation_samples": 2030,
+    "test_used_for_selection": false
+  },
+  "results": {
+    "validation_accuracy": 0.6640394088669951,
+    "majority_baseline": 0.5684729064039409
+  },
+  "artifacts": {
+    "model": "pipeline.joblib",
+    "validation_predictions": "val_predictions.npy",
+    "metrics": "metrics.json"
+  },
+  "reproducibility": {
+    "model_reload_verified": true,
+    "reloaded_predictions_identical": true
+  },
+  "llm_usage": {
+    "used_during_training": false,
+    "cost_rmb": 0.0
+  },
+  "eligible_as_final_autonomous_result": false,
+  "notes": "Manually developed deterministic baseline for development reference."
+}

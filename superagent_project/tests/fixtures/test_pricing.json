@@ -1,0 +1,15 @@
+{
+  "pricing_snapshot_date": "test-only",
+  "currency": "RMB",
+  "task_budget_rmb": "20.00",
+  "exploration_limit_rmb": "18.50",
+  "models": {
+    "test-model": {
+      "input_rmb_per_million_tokens": "2.00",
+      "output_rmb_per_million_tokens": "8.00",
+      "official_source": "test-fixture",
+      "release_date": "2026-01-01",
+      "verified": true
+    }
+  }
+}

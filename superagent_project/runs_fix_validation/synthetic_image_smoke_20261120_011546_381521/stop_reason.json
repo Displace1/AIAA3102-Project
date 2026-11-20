@@ -1,0 +1,10 @@
+{
+  "run_type": "development_run",
+  "reason": "deterministic_mode_completed",
+  "completed_experiments": 1,
+  "successful_experiments": 1,
+  "failed_experiments": 0,
+  "elapsed_seconds": 6.341078699999343,
+  "llm_cost_rmb": "0.00000000",
+  "remaining_budget_rmb": null
+}

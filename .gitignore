@@ -1,0 +1,27 @@
+# --- Training artifacts / large run outputs ---
+runs/
+
+# --- Secrets ---
+api_key.txt
+.env
+*.env
+*_api_key.txt
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db

@@ -1,0 +1,2 @@
+{"experiment_id":"manual_task1_baseline_001","task":"in_vehicle_coupon_recommendation","model":"one_hot_logistic_regression","validation_accuracy":0.6640394088669951,"random_seed":42,"test_used_for_selection":false,"model_path":"../outputs/task1/pipeline.joblib","run_type":"manual_baseline"}
+{"experiment_id":"manual_task2_baseline_001","task":"headlines_ctr","model":"pairwise_tfidf_logistic_regression","validation_accuracy":0.6829787234042554,"random_seed":42,"test_used_for_selection":false,"model_path":"../outputs/task2/model.joblib","run_type":"manual_baseline"}

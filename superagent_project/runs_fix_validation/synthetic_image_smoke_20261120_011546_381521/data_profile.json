@@ -1,0 +1,124 @@
+{
+  "modality": "image",
+  "task_type": "binary_classification",
+  "data_format": "image_directory_split",
+  "train_samples": 24,
+  "validation_samples": 8,
+  "test_samples": 8,
+  "number_of_classes": 2,
+  "class_names": [
+    "dark",
+    "light"
+  ],
+  "class_to_index": {
+    "dark": 0,
+    "light": 1
+  },
+  "class_distribution": {
+    "dark": 12,
+    "light": 12
+  },
+  "train_class_distribution": {
+    "dark": 12,
+    "light": 12
+  },
+  "validation_class_distribution": {
+    "dark": 4,
+    "light": 4
+  },
+  "supported_extensions": [
+    ".bmp",
+    ".gif",
+    ".jpeg",
+    ".jpg",
+    ".png",
+    ".tif",
+    ".tiff",
+    ".webp"
+  ],
+  "image_summary": {
+    "train": {
+      "samples": 24,
+      "extension_counts": {
+        ".png": 24
+      },
+      "mode_counts": {
+        "RGB": 24
+      },
+      "rgb_samples": 24,
+      "rgba_samples": 0,
+      "grayscale_samples": 0,
+      "minimum_width": 48,
+      "maximum_width": 48,
+      "minimum_height": 48,
+      "maximum_height": 48,
+      "median_width": 48,
+      "median_height": 48,
+      "common_sizes": [
+        {
+          "size": "48x48",
+          "count": 24
+        }
+      ],
+      "corrupt_images": 0
+    },
+    "validation": {
+      "samples": 8,
+      "extension_counts": {
+        ".png": 8
+      },
+      "mode_counts": {
+        "RGB": 8
+      },
+      "rgb_samples": 8,
+      "rgba_samples": 0,
+      "grayscale_samples": 0,
+      "minimum_width": 48,
+      "maximum_width": 48,
+      "minimum_height": 48,
+      "maximum_height": 48,
+      "median_width": 48,
+      "median_height": 48,
+      "common_sizes": [
+        {
+          "size": "48x48",
+          "count": 8
+        }
+      ],
+      "corrupt_images": 0
+    },
+    "test": {
+      "samples": 8,
+      "extension_counts": {
+        ".png": 8
+      },
+      "mode_counts": {
+        "RGB": 8
+      },
+      "rgb_samples": 8,
+      "rgba_samples": 0,
+      "grayscale_samples": 0,
+      "minimum_width": 48,
+      "maximum_width": 48,
+      "minimum_height": 48,
+      "maximum_height": 48,
+      "median_width": 48,
+      "median_height": 48,
+      "common_sizes": [
+        {
+          "size": "48x48",
+          "count": 8
+        }
+      ],
+      "corrupt_images": 0
+    }
+  },
+  "test_labels_inspected": false,
+  "metric": "accuracy",
+  "execution_context": {
+    "experiment_timeout_seconds": 600,
+    "maximum_cpu_threads": 2,
+    "cuda_available": true,
+    "cuda_device_name": "NVIDIA GeForce RTX 5070 Ti"
+  }
+}
