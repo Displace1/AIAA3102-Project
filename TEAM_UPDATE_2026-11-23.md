@@ -355,6 +355,9 @@ FileNotFoundError: Configured file does not exist: D:\python_project\...\C_train
 
 ## 8. 怎么验证（可直接复制）
 
+> 下面第 2–4 步的脚本在**本地开发目录** `Final Project/test_tasks/`（21 个脚本，共 164KB）。
+> 这个目录同时存着 4.1GB 的探针数据集，所以**没有纳入仓库**；需要的话我可以单独归档脚本和报告。
+
 ```bash
 cd "Final Project/try_1/superagent_project"
 
@@ -411,6 +414,7 @@ python main.py --config ../../test_tasks/p4a_log_loss/config.json --final-evalua
 
 ---
 
-维护：本次改动的设计推导与全部实测数据分别在
-`test_tasks/COLUMN_TYPE_ORDINAL_REPORT.md`、`test_tasks/METRICS_AND_LABELS_REPORT.md`、
-`test_tasks/IMAGE_RUNTIME_CALIBRATION_GUIDE.md`（§九/§十）、`test_tasks/CURRENT_STATUS_2026-11-23.md`。
+维护：本次改动的设计推导与全部实测数据在本地 `Final Project/test_tasks/` 下
+（`COLUMN_TYPE_ORDINAL_REPORT.md`、`METRICS_AND_LABELS_REPORT.md`、
+`IMAGE_RUNTIME_CALIBRATION_GUIDE.md` §九/§十、`CURRENT_STATUS_2026-11-23.md`），
+该目录未纳入仓库（含 4.1GB 探针数据），需要时可单独归档。
