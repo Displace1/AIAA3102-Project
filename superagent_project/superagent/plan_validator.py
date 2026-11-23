@@ -2,7 +2,11 @@ import copy
 import json
 
 from superagent.experiment_plan import ExperimentPlan
-from superagent.image_runtime import estimate_image_training_seconds
+from superagent.image_runtime import (
+    estimate_image_training_seconds,
+    estimate_image_training_seconds_with_source,
+    recommended_image_size,
+)
 
 
 PARAMETER_RULES = {
@@ -103,6 +107,10 @@ PARAMETER_RULES = {
                 "choices": ["onehot", "ordinal"],
                 "required": False,
             },
+            "ordinal_preprocessing": {
+                "choices": ["ordinal", "onehot"],
+                "required": False,
+            },
             "class_weight": {
                 "choices": ["balanced", None],
                 "required": False,
@@ -124,6 +132,10 @@ PARAMETER_RULES = {
                 "choices": ["onehot", "ordinal"],
                 "required": False,
             },
+            "ordinal_preprocessing": {
+                "choices": ["ordinal", "onehot"],
+                "required": False,
+            },
         },
     },
     "tabular_random_forest": {
@@ -140,6 +152,10 @@ PARAMETER_RULES = {
             },
             "categorical_preprocessing": {
                 "choices": ["onehot", "ordinal"],
+                "required": False,
+            },
+            "ordinal_preprocessing": {
+                "choices": ["ordinal", "onehot"],
                 "required": False,
             },
         },
@@ -380,10 +396,12 @@ class PlanValidator:
                 "ngram_min cannot be greater than ngram_max."
             )
         if adapter_rules["modality"] == "image":
-            estimated = estimate_image_training_seconds(
-                plan.adapter_name,
-                plan.hyperparameters,
-                data_profile,
+            estimated, estimate_source = (
+                estimate_image_training_seconds_with_source(
+                    plan.adapter_name,
+                    plan.hyperparameters,
+                    data_profile,
+                )
             )
             timeout = (data_profile.get("execution_context") or {}).get(
                 "experiment_timeout_seconds"
@@ -393,8 +411,68 @@ class PlanValidator:
                 if estimated > safe_limit:
                     raise PlanValidationError(
                         "Estimated image training time "
-                        f"{estimated:.0f}s exceeds 80% of the {timeout}s "
-                        "experiment timeout. Reduce epochs or image_size, "
-                        "or choose a smaller image adapter."
+                        f"{estimated:.0f}s ({plan.adapter_name}, "
+                        f"{plan.hyperparameters.get('image_size')}px, "
+                        f"{plan.hyperparameters.get('epochs')} epochs"
+                        f"{self._estimate_source_note(estimate_source)}) "
+                        "exceeds 80% of the "
+                        f"{timeout}s experiment timeout "
+                        f"(limit {safe_limit:.0f}s). "
+                        "Reduce epochs or image_size, or choose a smaller "
+                        "image adapter."
+                        + self._feasible_image_reference(data_profile, safe_limit)
                     )
         return plan
+
+    @staticmethod
+    def _estimate_source_note(estimate_source):
+        if estimate_source == "measured":
+            return ", from a measured run on this data and machine"
+        return ""
+
+    @staticmethod
+    def _feasible_image_reference(data_profile, safe_limit):
+        """Describe image configurations that do fit, so the planner can
+        revise instead of guessing again."""
+        timeout = (data_profile.get("execution_context") or {}).get(
+            "experiment_timeout_seconds"
+        )
+        if timeout is None:
+            return ""
+        size = recommended_image_size(data_profile)
+
+        entries = []
+        for adapter_name, rules in PARAMETER_RULES.items():
+            if rules["modality"] != "image":
+                continue
+            chosen = None
+            for epochs in (5, 3, 2, 1):
+                estimated = estimate_image_training_seconds(
+                    adapter_name,
+                    {
+                        "image_size": size,
+                        "epochs": epochs,
+                        "batch_size": 32,
+                    },
+                    data_profile,
+                )
+                if estimated is not None and estimated <= safe_limit:
+                    chosen = (
+                        f"{adapter_name}@{size}px/{epochs} epochs "
+                        f"about {estimated:.0f}s"
+                    )
+                    break
+            if chosen is None:
+                chosen = (
+                    f"{adapter_name} cannot fit even 1 epoch at {size}px "
+                    f"within {safe_limit:.0f}s"
+                )
+            entries.append(chosen)
+
+        if not entries:
+            return ""
+        return (
+            " Fitting configurations measured on this machine: "
+            + "; ".join(entries)
+            + "."
+        )

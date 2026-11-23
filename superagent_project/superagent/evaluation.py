@@ -8,6 +8,14 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 
+from superagent.metrics import (
+    classifier_probabilities,
+    classifier_scores,
+    log_loss_value,
+    roc_auc_value,
+    scores_from_probabilities,
+)
+
 
 def evaluate_classifier(classifier, X_train, y_train, X_val, y_val):
     """Return JSON-safe classification metrics for a fitted classifier."""
@@ -42,6 +50,21 @@ def evaluate_classifier(classifier, X_train, y_train, X_val, y_val):
     prediction_values, prediction_counts = np.unique(
         validation_predictions, return_counts=True
     )
+    # score-based metrics: None when the estimator exposes no scores.  The
+    # probability matrix is extracted once and shared by roc_auc and log_loss;
+    # only roc_auc may fall back to decision_function margins.
+    probabilities = classifier_probabilities(classifier, X_val)
+    scores = (
+        scores_from_probabilities(probabilities)
+        if probabilities is not None
+        else classifier_scores(classifier, X_val)
+    )
+    roc_auc = roc_auc_value(y_val, scores)
+    log_loss_score = log_loss_value(
+        y_val,
+        probabilities,
+        classes=getattr(classifier, "classes_", None),
+    )
 
     return {
         "predictions": validation_predictions,
@@ -51,6 +74,8 @@ def evaluate_classifier(classifier, X_train, y_train, X_val, y_val):
         "precision_macro": float(precision),
         "recall_macro": float(recall),
         "f1_macro": float(f1),
+        "roc_auc": roc_auc,
+        "log_loss": log_loss_score,
         "confusion_matrix": confusion_matrix(
             y_val, validation_predictions, labels=labels
         ).astype(int).tolist(),
@@ -77,6 +102,8 @@ def result_metric_fields(metrics):
             "recall_macro",
             "f1_macro",
             "balanced_accuracy",
+            "roc_auc",
+            "log_loss",
             "confusion_matrix",
             "class_recall",
             "predicted_class_distribution",

@@ -17,7 +17,13 @@ from sklearn.metrics import (
 )
 
 from superagent.image_inspector import SUPPORTED_IMAGE_EXTENSIONS
-from superagent.metrics import test_metric_key
+from superagent.label_encoding import encode_labels
+from superagent.metrics import (
+    log_loss_value,
+    metric_needs_probabilities,
+    roc_auc_value,
+    test_metric_key,
+)
 from superagent.predictor import ArtifactPredictor, IMAGE_ADAPTERS
 from superagent.recovery import configuration_sha256
 
@@ -119,25 +125,51 @@ class FinalEvaluator:
         )
 
         prediction_started = time.perf_counter()
-        predictions = self.predictor.predict(
+        batch = self.predictor.predict_batch(
             artifact_path=artifact_path,
             adapter_name=adapter_name,
             config=config,
         )
+        predictions = batch.predictions
         prediction_time = time.perf_counter() - prediction_started
-        labels = self._load_test_labels(config)
+        data_profile = self._load_data_profile(run_directory)
+        class_labels = data_profile.get("class_labels") or None
+        labels = self._load_test_labels(config, data_profile)
         if len(predictions) != len(labels):
             raise FinalEvaluationError(
                 "Prediction count does not match test label count: "
                 f"{len(predictions)} != {len(labels)}."
             )
-        metrics = self._classification_metrics(labels, predictions)
+        metrics = self._classification_metrics(
+            labels,
+            predictions,
+            class_labels=class_labels,
+            scores=getattr(batch, "scores", None),
+            probabilities=getattr(batch, "probabilities", None),
+        )
         metrics["prediction_time_seconds"] = prediction_time
         metrics["test_samples"] = int(len(labels))
         selection_metric = lock["selection_metric"]
-        selected_test_metric = float(
-            metrics[test_metric_key(selection_metric)]
-        )
+        metric_key = test_metric_key(selection_metric)
+        selected_test_metric = metrics.get(metric_key)
+        if selected_test_metric is None:
+            if metric_needs_probabilities(selection_metric):
+                raise FinalEvaluationError(
+                    f"The locked model was selected by {selection_metric!r}, "
+                    "but the locked artifact exposes no probability output, "
+                    "so that metric cannot be computed on the test split.  "
+                    "Re-run development with an adapter that implements "
+                    "predict_proba (or an image adapter, whose softmax head "
+                    "always provides one)."
+                )
+            raise FinalEvaluationError(
+                f"The locked model was selected by {selection_metric!r}, but "
+                "that metric could not be computed on the test split.  Metrics "
+                "such as roc_auc need probability scores from the locked "
+                "artifact; re-run development with an adapter that exposes "
+                "predict_proba or decision_function."
+            )
+        selected_test_metric = float(selected_test_metric)
         selected_validation_metric = float(
             lock.get("validation_metric_value", lock["validation_accuracy"])
         )
@@ -159,7 +191,7 @@ class FinalEvaluator:
         self._atomic_copy(artifact_path, final_model_path)
         self._atomic_write_npy(predictions_npy_path, predictions)
         self._atomic_write_predictions_csv(
-            predictions_csv_path, predictions
+            predictions_csv_path, predictions, class_labels
         )
         self._atomic_write_json(metrics_path, metrics)
 
@@ -176,6 +208,7 @@ class FinalEvaluator:
             "validation_metric_value": selected_validation_metric,
             "test_accuracy": metrics["test_accuracy"],
             "test_metric_value": selected_test_metric,
+            "test_roc_auc": metrics.get("test_roc_auc"),
             "test_samples": metrics["test_samples"],
             "test_used_for_selection": False,
             "model_path": str(final_model_path),
@@ -212,6 +245,8 @@ class FinalEvaluator:
             "recall_macro": metrics["recall_macro"],
             "f1_macro": metrics["f1_macro"],
             "balanced_accuracy": metrics["balanced_accuracy"],
+            "test_roc_auc": metrics.get("test_roc_auc"),
+            "class_labels": class_labels,
             "artifact_hashes_path": str(hashes_path),
         }
         self._atomic_write_json(
@@ -330,11 +365,25 @@ class FinalEvaluator:
             )
 
     @staticmethod
-    def _load_test_labels(config):
+    def _load_data_profile(run_directory):
+        """The profile records how string labels were encoded; older runs have none."""
+        path = Path(run_directory) / "data_profile.json"
+        if not path.is_file():
+            return {}
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                profile = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return {}
+        return profile if isinstance(profile, dict) else {}
+
+    @staticmethod
+    def _load_test_labels(config, data_profile=None):
+        label_mapping = (data_profile or {}).get("label_mapping") or None
         if config.data["format"] == "npy_split":
-            return np.asarray(
-                np.load(config.data["test_labels"], allow_pickle=True),
-                dtype=int,
+            return encode_labels(
+                np.load(config.data["test_labels"], allow_pickle=True).tolist(),
+                label_mapping,
             )
         if config.data["format"] == "csv_split":
             labels = []
@@ -351,8 +400,8 @@ class FinalEvaluator:
                         f"Test CSV is missing target column: {target}"
                     )
                 for row in reader:
-                    labels.append(int(row[target]))
-            return np.asarray(labels, dtype=int)
+                    labels.append(row[target])
+            return encode_labels(labels, label_mapping)
         if config.data["format"] == "image_directory_split":
             train_directory = Path(config.data["train_directory"])
             test_directory = Path(config.data["test_directory"])
@@ -391,7 +440,9 @@ class FinalEvaluator:
         )
 
     @staticmethod
-    def _classification_metrics(labels, predictions):
+    def _classification_metrics(
+        labels, predictions, class_labels=None, scores=None, probabilities=None
+    ):
         classes = sorted(set(labels.tolist()) | set(predictions.tolist()))
         precision, recall, f1, _ = precision_recall_fscore_support(
             labels,
@@ -407,6 +458,16 @@ class FinalEvaluator:
             average=None,
             zero_division=0,
         )[1]
+
+        def class_name(code):
+            # With string labels the codes are positions in ``class_labels``;
+            # without them the code is the original label.
+            if class_labels and isinstance(code, (int, np.integer)):
+                index = int(code)
+                if 0 <= index < len(class_labels):
+                    return class_labels[index]
+            return str(code)
+
         return {
             "test_accuracy": float(accuracy_score(labels, predictions)),
             "balanced_accuracy": float(
@@ -415,11 +476,15 @@ class FinalEvaluator:
             "precision_macro": float(precision),
             "recall_macro": float(recall),
             "f1_macro": float(f1),
+            "test_roc_auc": roc_auc_value(labels, scores),
+            # ``probabilities`` stays None for margin-based artifacts, so a
+            # log_loss-selected run reports None instead of a fake number.
+            "test_log_loss": log_loss_value(labels, probabilities),
             "confusion_matrix": confusion_matrix(
                 labels, predictions, labels=classes
             ).astype(int).tolist(),
             "class_recall": {
-                str(label): float(value)
+                class_name(label): float(value)
                 for label, value in zip(classes, per_class_recall)
             },
         }
@@ -495,14 +560,20 @@ class FinalEvaluator:
                 temporary.unlink()
 
     @staticmethod
-    def _atomic_write_predictions_csv(path, predictions):
+    def _atomic_write_predictions_csv(path, predictions, class_labels=None):
         temporary = path.with_suffix(path.suffix + ".tmp")
         try:
             with temporary.open("w", encoding="utf-8", newline="") as file:
                 writer = csv.writer(file)
                 writer.writerow(["row_id", "prediction"])
                 for row_id, prediction in enumerate(predictions):
-                    writer.writerow([row_id, int(prediction)])
+                    code = int(prediction)
+                    # A submission should carry the labels the task asked for,
+                    # not the internal integer codes of a string mapping.
+                    if class_labels and 0 <= code < len(class_labels):
+                        writer.writerow([row_id, class_labels[code]])
+                    else:
+                        writer.writerow([row_id, code])
                 file.flush()
                 os.fsync(file.fileno())
             os.replace(temporary, path)

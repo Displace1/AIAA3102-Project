@@ -14,6 +14,12 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 
+from superagent.metrics import (
+    log_loss_value,
+    metric_direction,
+    roc_auc_value,
+)
+
 
 class ImageTrainingError(RuntimeError):
     pass
@@ -21,6 +27,13 @@ class ImageTrainingError(RuntimeError):
 
 class GPUOutOfMemoryError(ImageTrainingError):
     pass
+
+
+# A new epoch is started only if 1.25x the slowest observed epoch still fits in
+# the remaining budget.  The margin covers the tail work that happens after the
+# last epoch (best-weight reload, validation inference in the adapter, artifact
+# save) and the variance caused by a partially warm page cache.
+TIME_BUDGET_EPOCH_MARGIN = 1.25
 
 
 @dataclass(frozen=True)
@@ -43,6 +56,18 @@ class ImageTrainingResult:
     device: str
     best_weights_path: str
     history: list
+    # "completed" | "early_stopping" | "time_budget".  Kept separate from
+    # ``early_stopped`` because early stopping means "the model converged" while
+    # a time-budget stop means "the plan asked for more epochs than the clock
+    # allowed"; the planner reacts differently to the two.
+    stopped_reason: str = "completed"
+    time_budget_seconds: float | None = None
+    # ``None`` when the number of classes is below two or the scores were
+    # unavailable; a plan selected by ``roc_auc`` then cannot be satisfied.
+    roc_auc: float | None = None
+    # Cross entropy of the softmax probabilities on the validation split.  A
+    # minimisation metric, so it is reported but never compared with ``max``.
+    log_loss: float | None = None
 
     def to_dict(self):
         return asdict(self)
@@ -67,7 +92,7 @@ def select_training_device(requested_device=None):
     return device
 
 
-def _classification_metrics(labels, predictions, number_of_classes):
+def _classification_metrics(labels, predictions, number_of_classes, scores=None):
     classes = list(range(number_of_classes))
     precision, recall, f1, _ = precision_recall_fscore_support(
         labels,
@@ -95,6 +120,10 @@ def _classification_metrics(labels, predictions, number_of_classes):
         "precision_macro": float(precision),
         "recall_macro": float(recall),
         "f1_macro": float(f1),
+        "roc_auc": roc_auc_value(labels, scores),
+        "log_loss": log_loss_value(
+            labels, scores, classes=classes
+        ),
         "confusion_matrix": confusion_matrix(
             labels, predictions, labels=classes
         ).astype(int).tolist(),
@@ -115,6 +144,7 @@ def evaluate_image_model(model, data_loader, device, number_of_classes, loss_fn)
     total_loss = 0.0
     labels = []
     predictions = []
+    scores = []
     with torch.inference_mode():
         for images, batch_labels in data_loader:
             images = images.to(device, non_blocking=True)
@@ -124,11 +154,20 @@ def evaluate_image_model(model, data_loader, device, number_of_classes, loss_fn)
             total_loss += float(loss.item()) * len(batch_labels)
             labels.extend(batch_labels.detach().cpu().tolist())
             predictions.extend(logits.argmax(dim=1).detach().cpu().tolist())
+            if number_of_classes > 1:
+                scores.append(
+                    torch.softmax(logits, dim=1).detach().cpu().numpy()
+                )
     if not labels:
         raise ImageTrainingError("Evaluation data loader produced no samples.")
+    # A single score column is meaningless for ROC-AUC, so binary tasks get the
+    # two-column matrix and let ``roc_auc_value`` pick the positive class.
+    score_matrix = np.vstack(scores) if scores else None
     return {
         "loss": total_loss / len(labels),
-        **_classification_metrics(labels, predictions, number_of_classes),
+        **_classification_metrics(
+            labels, predictions, number_of_classes, score_matrix
+        ),
     }
 
 
@@ -148,6 +187,7 @@ def train_image_classifier(
     freeze_backbone_epochs=0,
     backbone_parameters=None,
     metric="accuracy",
+    time_budget_seconds=None,
 ):
     if epochs <= 0:
         raise ValueError("epochs must be positive.")
@@ -157,6 +197,8 @@ def train_image_classifier(
         raise ValueError("early_stopping_patience must be positive.")
     if number_of_classes < 2:
         raise ValueError("number_of_classes must be at least two.")
+    if time_budget_seconds is not None and time_budget_seconds < 0:
+        raise ValueError("time_budget_seconds cannot be negative.")
 
     set_image_random_seed(random_seed)
     device = select_training_device(requested_device)
@@ -187,20 +229,29 @@ def train_image_classifier(
         "accuracy": "accuracy",
         "macro_f1": "f1_macro",
         "balanced_accuracy": "balanced_accuracy",
+        "precision": "precision_macro",
+        "recall": "recall_macro",
+        "roc_auc": "roc_auc",
+        "log_loss": "log_loss",
     }
     if metric not in metric_keys:
         raise ValueError(f"Unsupported image selection metric: {metric!r}.")
     selection_key = metric_keys[metric]
-    best_score = float("-inf")
+    # log_loss is minimised; seeding the incumbent with +inf makes the first
+    # epoch a guaranteed improvement without a special case.
+    direction = metric_direction(metric)
+    best_score = float("-inf") if direction > 0 else float("inf")
     best_epoch = 0
     best_train_accuracy = 0.0
     best_validation_metrics = None
     epochs_without_improvement = 0
     history = []
     early_stopped = False
+    stopped_reason = "completed"
 
     try:
         for epoch in range(1, epochs + 1):
+            epoch_started_at = time.perf_counter()
             if epoch == freeze_backbone_epochs + 1:
                 for parameter in backbone_parameters:
                     parameter.requires_grad = True
@@ -241,6 +292,13 @@ def train_image_classifier(
                 number_of_classes=number_of_classes,
                 loss_fn=loss_fn,
             )
+            selection_value = validation_metrics.get(selection_key)
+            if selection_value is None:
+                raise ImageTrainingError(
+                    f"Selection metric {metric!r} is not available for this "
+                    "task; it needs at least two classes and probability "
+                    "scores."
+                )
             epoch_record = {
                 "epoch": epoch,
                 "train_loss": total_loss / total_samples,
@@ -248,18 +306,23 @@ def train_image_classifier(
                 "validation_loss": validation_metrics["loss"],
                 "validation_accuracy": validation_metrics["accuracy"],
                 "validation_f1_macro": validation_metrics["f1_macro"],
+                "validation_log_loss": validation_metrics.get("log_loss"),
                 "validation_balanced_accuracy": validation_metrics.get(
                     "balanced_accuracy", validation_metrics["recall_macro"]
                 ),
                 "selection_metric": metric,
-                "selection_metric_value": validation_metrics[selection_key],
+                "selection_metric_value": selection_value,
                 "backbone_frozen": epoch <= freeze_backbone_epochs,
+                # Wall clock for this epoch including its share of the cold
+                # cache penalty.  This is the only honest throughput signal on
+                # an uncalibrated machine, so it is recorded per epoch.
+                "epoch_seconds": time.perf_counter() - epoch_started_at,
             }
             history.append(epoch_record)
 
-            improvement = validation_metrics[selection_key] - best_score
+            improvement = direction * (selection_value - best_score)
             if improvement >= minimum_improvement:
-                best_score = validation_metrics[selection_key]
+                best_score = selection_value
                 best_epoch = epoch
                 best_train_accuracy = train_accuracy
                 best_validation_metrics = validation_metrics
@@ -269,6 +332,23 @@ def train_image_classifier(
                 epochs_without_improvement += 1
                 if epochs_without_improvement >= early_stopping_patience:
                     early_stopped = True
+                    stopped_reason = "early_stopping"
+                    break
+
+            # Time-budget guard.  Stopping here keeps the best weights saved so
+            # far and lets the worker send a usable result, instead of being
+            # killed by the parent at the timeout with nothing to show.  The
+            # slowest epoch so far is used as the next-epoch cost because the
+            # first epoch carries the cold page cache penalty and later epochs
+            # can be slower again if the dataset does not fit in RAM.
+            if time_budget_seconds is not None:
+                elapsed = time.perf_counter() - started_at
+                remaining = float(time_budget_seconds) - elapsed
+                slowest_epoch = max(
+                    record["epoch_seconds"] for record in history
+                )
+                if remaining < slowest_epoch * TIME_BUDGET_EPOCH_MARGIN:
+                    stopped_reason = "time_budget"
                     break
 
         if best_validation_metrics is None or not best_weights_path.is_file():
@@ -320,6 +400,12 @@ def train_image_classifier(
         device=str(device),
         best_weights_path=str(best_weights_path.resolve()),
         history=history,
+        stopped_reason=stopped_reason,
+        time_budget_seconds=(
+            None if time_budget_seconds is None else float(time_budget_seconds)
+        ),
+        roc_auc=best_validation_metrics.get("roc_auc"),
+        log_loss=best_validation_metrics.get("log_loss"),
     )
     _atomic_write_json(history_path, result.to_dict())
     return result

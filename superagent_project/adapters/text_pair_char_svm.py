@@ -23,11 +23,12 @@ class TextPairCharSvmAdapter(ModelAdapter):
         output_dir = Path(output_dir)
         columns = data_profile["feature_columns"]
         target = data_profile["target_column"]
+        label_mapping = data_profile.get("label_mapping")
         train_columns, y_train = load_text_csv(
-            config.data["train"], columns, target
+            config.data["train"], columns, target, label_mapping
         )
         val_columns, y_val = load_text_csv(
-            config.data["validation"], columns, target
+            config.data["validation"], columns, target, label_mapping
         )
         vectorizer = TfidfVectorizer(
             analyzer="char_wb",

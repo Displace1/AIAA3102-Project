@@ -19,6 +19,7 @@ from superagent.image_dataset import (
     build_image_inference_loader,
 )
 from superagent.image_training import select_training_device
+from superagent.metrics import classifier_score_bundle
 from superagent.tabular_data import load_tabular_csv
 
 
@@ -53,30 +54,43 @@ class PredictionBatch:
     predictions: np.ndarray
     input_paths: Optional[list] = None
     class_names: Optional[list] = None
+    # Probability-like scores so the final evaluation can report roc_auc;
+    # ``None`` when the locked model exposes no probabilities.
+    scores: Optional[np.ndarray] = None
+    # Strict probabilities (``predict_proba`` / softmax) so the final
+    # evaluation can report log_loss.  Kept apart from ``scores`` because a
+    # binary ``scores`` column may be a decision_function margin.
+    probabilities: Optional[np.ndarray] = None
 
 
 class ArtifactPredictor:
     """Load one locked artifact and produce test predictions."""
 
     def predict(self, artifact_path, adapter_name, config):
+        return self.predict_batch(artifact_path, adapter_name, config).predictions
+
+    def predict_batch(self, artifact_path, adapter_name, config):
+        """Same as :meth:`predict` but keeps the scores for score-based metrics."""
+        return self.predict_input_with_metadata(
+            artifact_path=artifact_path,
+            adapter_name=adapter_name,
+            input_path=self._input_path(adapter_name, config),
+        )
+
+    @staticmethod
+    def _input_path(adapter_name, config):
         if adapter_name in TABULAR_ADAPTERS:
-            input_path = (
+            return (
                 config.data["test_features"]
                 if config.data["format"] == "npy_split"
                 else config.data["test"]
             )
-        elif adapter_name in TEXT_PAIR_ADAPTERS:
-            input_path = config.data["test"]
-        elif adapter_name in IMAGE_ADAPTERS:
-            input_path = config.data["test_directory"]
-        else:
-            raise PredictionError(
-                f"No final prediction implementation for adapter: {adapter_name}"
-            )
-        return self.predict_input(
-            artifact_path=artifact_path,
-            adapter_name=adapter_name,
-            input_path=input_path,
+        if adapter_name in TEXT_PAIR_ADAPTERS:
+            return config.data["test"]
+        if adapter_name in IMAGE_ADAPTERS:
+            return config.data["test_directory"]
+        raise PredictionError(
+            f"No final prediction implementation for adapter: {adapter_name}"
         )
 
     def predict_input(self, artifact_path, adapter_name, input_path):
@@ -100,14 +114,10 @@ class ArtifactPredictor:
 
         if adapter_name in TABULAR_ADAPTERS:
             self._require_file(input_path, "Tabular")
-            return PredictionBatch(
-                predictions=self._predict_tabular(artifact_path, input_path)
-            )
+            return self._predict_tabular(artifact_path, input_path)
         if adapter_name in TEXT_PAIR_ADAPTERS:
             self._require_file(input_path, "Text-pair")
-            return PredictionBatch(
-                predictions=self._predict_text_pair(artifact_path, input_path)
-            )
+            return self._predict_text_pair(artifact_path, input_path)
         if adapter_name in IMAGE_ADAPTERS:
             return self._predict_image(artifact_path, input_path)
         raise PredictionError(
@@ -135,7 +145,12 @@ class ArtifactPredictor:
                 feature_columns=feature_columns,
                 require_target=False,
             )
-            return np.asarray(model.predict(features), dtype=int)
+            scores, probabilities = classifier_score_bundle(model, features)
+            return PredictionBatch(
+                predictions=np.asarray(model.predict(features), dtype=int),
+                scores=scores,
+                probabilities=probabilities,
+            )
 
         model = artifact
         if not hasattr(model, "predict"):
@@ -147,7 +162,12 @@ class ArtifactPredictor:
         )
         if not getattr(model, "superagent_type_aware", False):
             features = normalize_categorical_array(features)
-        return np.asarray(model.predict(features), dtype=int)
+        scores, probabilities = classifier_score_bundle(model, features)
+        return PredictionBatch(
+            predictions=np.asarray(model.predict(features), dtype=int),
+            scores=scores,
+            probabilities=probabilities,
+        )
 
     @staticmethod
     def _predict_text_pair(artifact_path, input_path):
@@ -186,8 +206,12 @@ class ArtifactPredictor:
                     text_columns[index].append(row[column].strip())
 
         features = build_text_features(artifact["vectorizer"], text_columns)
-        return np.asarray(
-            artifact["classifier"].predict(features), dtype=int
+        classifier = artifact["classifier"]
+        scores, probabilities = classifier_score_bundle(classifier, features)
+        return PredictionBatch(
+            predictions=np.asarray(classifier.predict(features), dtype=int),
+            scores=scores,
+            probabilities=probabilities,
         )
 
     @staticmethod
@@ -219,11 +243,15 @@ class ArtifactPredictor:
         model = build_model_from_artifact(package).to(device)
         predictions = []
         input_paths = []
+        scores = []
         with torch.inference_mode():
             for images, batch_paths in loader:
                 logits = model(images.to(device, non_blocking=True))
                 predictions.extend(
                     logits.argmax(dim=1).detach().cpu().tolist()
+                )
+                scores.append(
+                    torch.softmax(logits, dim=1).detach().cpu().numpy()
                 )
                 input_paths.extend(str(path) for path in batch_paths)
 
@@ -243,10 +271,15 @@ class ArtifactPredictor:
                     f"{prediction}."
                 )
             class_names.append(str(class_name))
+        score_matrix = np.vstack(scores) if scores else None
         return PredictionBatch(
             predictions=np.asarray(predictions, dtype=int),
             input_paths=input_paths,
             class_names=class_names,
+            scores=score_matrix,
+            # The image head always ends in softmax, so the same matrix is a
+            # genuine probability distribution.
+            probabilities=score_matrix,
         )
 
     @staticmethod

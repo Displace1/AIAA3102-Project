@@ -3,7 +3,8 @@ from pathlib import Path
 from statistics import median
 
 from PIL import Image, UnidentifiedImageError
-import torch
+
+from superagent.runtime_environment import describe_runtime
 
 
 SUPPORTED_IMAGE_EXTENSIONS = {
@@ -101,17 +102,12 @@ class ImageInspector:
             "test_labels_inspected": False,
             "metric": config.metric,
             "execution_context": {
+                **describe_runtime(),
                 "experiment_timeout_seconds": (
                     getattr(config, "experiment_timeout_seconds", 1800)
                 ),
                 "maximum_cpu_threads": getattr(
                     config, "maximum_cpu_threads", 2
-                ),
-                "cuda_available": bool(torch.cuda.is_available()),
-                "cuda_device_name": (
-                    torch.cuda.get_device_name(0)
-                    if torch.cuda.is_available()
-                    else None
                 ),
             },
         }

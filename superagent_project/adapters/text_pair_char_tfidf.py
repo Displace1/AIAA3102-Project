@@ -34,11 +34,18 @@ class TextPairCharTfidfAdapter(ModelAdapter):
         feature_columns = data_profile["feature_columns"]
         target_column = data_profile["target_column"]
 
+        label_mapping = data_profile.get("label_mapping")
         train_columns, y_train = load_text_csv(
-            config.data["train"], feature_columns, target_column
+            config.data["train"],
+            feature_columns,
+            target_column,
+            label_mapping,
         )
         val_columns, y_val = load_text_csv(
-            config.data["validation"], feature_columns, target_column
+            config.data["validation"],
+            feature_columns,
+            target_column,
+            label_mapping,
         )
 
         vectorizer = TfidfVectorizer(

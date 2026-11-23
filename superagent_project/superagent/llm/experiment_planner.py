@@ -4,7 +4,10 @@ from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
 from superagent.experiment_plan import ExperimentPlan
-from superagent.plan_validator import PlanValidator
+from superagent.plan_validator import (
+    PlanValidationError,
+    PlanValidator,
+)
 
 
 class PlannerError(RuntimeError):
@@ -40,11 +43,16 @@ class LLMExperimentPlanner:
         temperature=0.1,
         max_tokens=2048,
         max_response_attempts=3,
+        max_plan_repairs=1,
     ):
         self.llm_client = llm_client
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.max_response_attempts = max(1, int(max_response_attempts))
+        # How many times a validator rejection is shown back to the model as a
+        # conversation turn before the failure is surfaced to the controller.
+        # 1 disables repair (a rejection propagates immediately).
+        self.max_plan_repairs = max(1, int(max_plan_repairs))
         self.validator = PlanValidator()
 
     def plan_next(
@@ -76,8 +84,60 @@ class LLMExperimentPlanner:
             adapter_specs=adapter_specs,
         )
 
+        conversation = list(messages)
+        plan_attempt = 0
+        while True:
+            plan_attempt += 1
+            response, result = self._request_json(
+                messages=conversation,
+                token_limit=self.max_tokens,
+            )
+            try:
+                decision = self._decision_from_response(
+                    response=response,
+                    data_profile=data_profile,
+                    existing_plans=existing_plans,
+                    next_experiment_id=next_experiment_id,
+                    call_result=result,
+                )
+            except PlanValidationError as error:
+                if plan_attempt >= self.max_plan_repairs:
+                    raise
+                print(
+                    "      Plan rejected "
+                    f"({plan_attempt}/{self.max_plan_repairs}), asking the "
+                    f"planner to revise: {error}"
+                )
+                conversation = list(conversation) + [
+                    {
+                        "role": "assistant",
+                        "content": json.dumps(
+                            response,
+                            ensure_ascii=False,
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": self._repair_instruction(
+                            error,
+                            adapter_specs,
+                        ),
+                    },
+                ]
+                continue
+
+            if decision.action == "run_experiment":
+                self._validate_gpu_oom_recovery(
+                    plan=decision.plan,
+                    experiment_history=experiment_history,
+                    existing_plans=existing_plans,
+                )
+            return decision
+
+    def _request_json(self, messages, token_limit):
+        """Ask the model until it returns a parseable JSON object."""
         request_messages = list(messages)
-        token_limit = self.max_tokens
+        limit = token_limit
         response = None
         result = None
         last_error = None
@@ -86,7 +146,7 @@ class LLMExperimentPlanner:
                 messages=request_messages,
                 purpose="exploration",
                 temperature=self.temperature,
-                max_tokens=token_limit,
+                max_tokens=limit,
             )
             content = result.get("content")
             try:
@@ -95,7 +155,7 @@ class LLMExperimentPlanner:
                         "The LLM returned an empty planner response."
                     )
                 response = self._parse_json_object(content)
-                break
+                return response, result
             except PlannerResponseError as error:
                 last_error = error
                 if response_attempt >= self.max_response_attempts:
@@ -107,7 +167,7 @@ class LLMExperimentPlanner:
                 if result.get("finish_reason") == "length" or not (
                     isinstance(content, str) and content.strip()
                 ):
-                    token_limit = min(max(token_limit * 2, 2048), 8192)
+                    limit = min(max(limit * 2, 2048), 8192)
                 request_messages = list(messages) + [
                     {
                         "role": "user",
@@ -120,24 +180,22 @@ class LLMExperimentPlanner:
                     }
                 ]
 
-        if response is None or result is None:
-            raise PlannerResponseError(
-                f"Planner did not produce a response: {last_error}"
-            )
-        decision = self._decision_from_response(
-            response=response,
-            data_profile=data_profile,
-            existing_plans=existing_plans,
-            next_experiment_id=next_experiment_id,
-            call_result=result,
+        raise PlannerResponseError(
+            f"Planner did not produce a response: {last_error}"
         )
-        if decision.action == "run_experiment":
-            self._validate_gpu_oom_recovery(
-                plan=decision.plan,
-                experiment_history=experiment_history,
-                existing_plans=existing_plans,
-            )
-        return decision
+
+    @staticmethod
+    def _repair_instruction(error, adapter_specs):
+        return (
+            "The validator rejected your previous plan: "
+            f"{error} \n"
+            "Return one corrected JSON object with exactly the same schema. "
+            "Pick a configuration that the stated limit allows. Do not repeat "
+            "a configuration that was already executed. Allow-listed "
+            "adapters: "
+            + ", ".join(sorted(adapter_specs))
+            + "."
+        )
 
     def _build_messages(
         self,
@@ -213,6 +271,8 @@ class LLMExperimentPlanner:
             "recall_macro",
             "f1_macro",
             "balanced_accuracy",
+            "roc_auc",
+            "log_loss",
             "generalization_gap",
             "class_recall",
             "predicted_class_distribution",
@@ -229,6 +289,7 @@ class LLMExperimentPlanner:
             "best_epoch",
             "peak_gpu_memory_mb",
             "early_stopped",
+            "stopped_reason",
         )
         compact = {
             key: record.get(key)

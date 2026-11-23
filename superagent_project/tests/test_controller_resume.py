@@ -11,6 +11,7 @@ from superagent.experiment_plan import ExperimentPlan
 from superagent.llm.experiment_planner import PlannerDecision
 from superagent.logger import RunLogger
 from superagent.recovery import RunRecovery, RunState
+from tests import absolutize_config_paths
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +68,9 @@ class ControllerResumeTests(unittest.TestCase):
             "r", encoding="utf-8"
         ) as file:
             config = json.load(file)
+        config = absolutize_config_paths(
+            config, PROJECT_ROOT / "configs"
+        )
         config["execution"]["max_experiments"] = 4
         with self.config_path.open("w", encoding="utf-8") as file:
             json.dump(config, file, indent=2)

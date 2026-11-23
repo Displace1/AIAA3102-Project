@@ -4,7 +4,32 @@ from collections import Counter
 import numpy as np
 
 from superagent.image_inspector import ImageInspector
-from superagent.tabular_data import infer_tabular_column_types, is_missing
+from superagent.label_encoding import describe_labels, encode_labels
+from superagent.tabular_data import (
+    classify_tabular_columns,
+    is_missing,
+    split_column_indices,
+)
+
+
+ORDINAL_EVIDENCE_LIMIT = 8
+
+
+def _ordinal_profile_fields(decisions, column_names=None):
+    """Summarise the ordinal channel without flooding the planner prompt."""
+    ordinal = [decision for decision in decisions if decision.kind == "ordinal"]
+    evidence = []
+    for decision in ordinal[:ORDINAL_EVIDENCE_LIMIT]:
+        entry = decision.to_dict()
+        if column_names is not None:
+            entry["column"] = column_names[decision.column]
+        evidence.append(entry)
+    return {
+        "ordinal_feature_count": len(ordinal),
+        "ordinal_column_indices": [decision.column for decision in ordinal],
+        "ordinal_evidence": evidence,
+        "ordinal_evidence_truncated": max(0, len(ordinal) - len(evidence)),
+    }
 
 
 def _is_missing(value):
@@ -63,8 +88,10 @@ class DataInspector:
             if count <= 1
         ]
         labels, counts = np.unique(y_train, return_counts=True)
-        numeric_indices, categorical_indices = infer_tabular_column_types(
-            X_train
+        label_fields = describe_labels(y_train.tolist())
+        decisions = classify_tabular_columns(X_train, target=y_train)
+        numeric_indices, ordinal_indices, categorical_indices = (
+            split_column_indices(decisions)
         )
 
         return {
@@ -80,6 +107,12 @@ class DataInspector:
             "categorical_feature_count": len(categorical_indices),
             "numeric_column_indices": numeric_indices,
             "categorical_column_indices": categorical_indices,
+            "column_type_counts": {
+                "numeric": len(numeric_indices),
+                "ordinal": len(ordinal_indices),
+                "categorical": len(categorical_indices),
+            },
+            **_ordinal_profile_fields(decisions),
             "unique_counts": unique_counts,
             "missing_counts": missing_counts,
             "constant_column_indices": constant_columns,
@@ -89,6 +122,7 @@ class DataInspector:
             },
             "minority_rate": float(counts.min() / counts.sum()),
             "majority_class_accuracy": float(counts.max() / counts.sum()),
+            **label_fields,
             "metric": config.metric,
         }
 
@@ -126,20 +160,36 @@ class DataInspector:
             )
             numeric_names = list(declared.get("numeric", []))
             categorical_names = list(declared.get("categorical", []))
-            if numeric_names or categorical_names:
+            ordinal_names = list(declared.get("ordinal", []))
+            if numeric_names or categorical_names or ordinal_names:
                 explicit_numeric = [
                     feature_columns.index(name) for name in numeric_names
                 ]
                 explicit_categorical = [
                     feature_columns.index(name) for name in categorical_names
                 ]
+                explicit_ordinal = [
+                    feature_columns.index(name) for name in ordinal_names
+                ]
             else:
                 explicit_numeric = None
                 explicit_categorical = None
-            numeric_indices, categorical_indices = infer_tabular_column_types(
+                explicit_ordinal = None
+            label_fields = describe_labels(
+                [row[target] for row in train_rows]
+            )
+            decisions = classify_tabular_columns(
                 matrix,
                 explicit_numeric=explicit_numeric,
                 explicit_categorical=explicit_categorical,
+                explicit_ordinal=explicit_ordinal,
+                target=encode_labels(
+                    [row[target] for row in train_rows],
+                    label_fields["label_mapping"],
+                ),
+            )
+            numeric_indices, ordinal_indices, categorical_indices = (
+                split_column_indices(decisions)
             )
             counts = list(labels.values())
             return {
@@ -165,6 +215,15 @@ class DataInspector:
                 "categorical_columns": [
                     feature_columns[index] for index in categorical_indices
                 ],
+                "ordinal_columns": [
+                    feature_columns[index] for index in ordinal_indices
+                ],
+                "column_type_counts": {
+                    "numeric": len(numeric_indices),
+                    "ordinal": len(ordinal_indices),
+                    "categorical": len(categorical_indices),
+                },
+                **_ordinal_profile_fields(decisions, feature_columns),
                 "unique_counts": [
                     len({str(row[column]) for row in train_rows})
                     for column in feature_columns
@@ -176,6 +235,7 @@ class DataInspector:
                 "class_distribution": dict(sorted(labels.items())),
                 "minority_rate": min(counts) / sum(counts),
                 "majority_class_accuracy": max(counts) / sum(counts),
+                **label_fields,
                 "metric": config.metric,
                 "modality_detection": (
                     "explicit_columns" if declared else "content_heuristic"
@@ -221,7 +281,11 @@ class DataInspector:
         text_columns = list(declared.get("text", []))
         numeric_columns = list(declared.get("numeric", []))
         categorical_columns = list(declared.get("categorical", []))
-        declared_features = text_columns + numeric_columns + categorical_columns
+        ordinal_columns = list(declared.get("ordinal", []))
+        declared_features = (
+            text_columns + numeric_columns + categorical_columns
+            + ordinal_columns
+        )
         if declared_features:
             if len(set(declared_features)) != len(declared_features):
                 raise ValueError("A CSV feature column was declared more than once.")
@@ -236,7 +300,9 @@ class DataInspector:
                     "Explicit data.columns must classify every feature; "
                     f"undeclared: {sorted(undeclared)}"
                 )
-            if text_columns and (numeric_columns or categorical_columns):
+            if text_columns and (
+                numeric_columns or categorical_columns or ordinal_columns
+            ):
                 raise ValueError(
                     "Mixed text and structured CSV features are not yet supported."
                 )
@@ -246,7 +312,7 @@ class DataInspector:
                         "Text CSV tasks require one or two text columns."
                     )
                 return ("text" if len(text_columns) == 1 else "text_pair"), text_columns
-            return "tabular", numeric_columns + categorical_columns
+            return "tabular", numeric_columns + categorical_columns + ordinal_columns
 
         def looks_like_text(column):
             values = [str(row[column]).strip() for row in train_rows]

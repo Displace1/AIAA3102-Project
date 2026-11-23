@@ -77,6 +77,7 @@ class ExperimentRegistry:
                         "C": 1.0,
                         "numeric_preprocessing": "standard",
                         "categorical_preprocessing": "onehot",
+                        "ordinal_preprocessing": "ordinal",
                         "class_weight": None,
                     },
                     reason=(
@@ -94,6 +95,7 @@ class ExperimentRegistry:
                         "class_weight": "balanced",
                         "numeric_preprocessing": "none",
                         "categorical_preprocessing": "onehot",
+                        "ordinal_preprocessing": "ordinal",
                     },
                     reason=(
                         "Test nonlinear interactions among categorical "

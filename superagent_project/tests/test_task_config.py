@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 from superagent.task_config import (
     load_task_config,
 )
@@ -171,6 +173,125 @@ class TaskConfigTests(unittest.TestCase):
             config_path.write_text(json.dumps(raw), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "run_type"):
                 load_task_config(config_path)
+
+
+class RelativeDataPathTests(unittest.TestCase):
+    """A checked-in config must not depend on the process working directory."""
+
+    def _write_split(self, root, prefix="data"):
+        data_dir = root / prefix
+        data_dir.mkdir(parents=True, exist_ok=True)
+        for split in ("train", "validation", "test"):
+            np.save(data_dir / f"{split}_features.npy", np.zeros((4, 2)))
+            np.save(data_dir / f"{split}_labels.npy", np.zeros(4, dtype=int))
+        return data_dir
+
+    def test_relative_paths_resolve_against_the_config_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data_dir = self._write_split(root, "data")
+            config_path = root / "nested" / "config.json"
+            config_path.parent.mkdir()
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "task": {"name": "relative_task"},
+                        "data": {
+                            "format": "npy_split",
+                            "train_features": "../data/train_features.npy",
+                            "train_labels": "../data/train_labels.npy",
+                            "validation_features": (
+                                "../data/validation_features.npy"
+                            ),
+                            "validation_labels": (
+                                "../data/validation_labels.npy"
+                            ),
+                            "test_features": "../data/test_features.npy",
+                            "test_labels": "../data/test_labels.npy",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            config = load_task_config(config_path)
+
+            self.assertEqual(
+                config.data["train_features"],
+                str((data_dir / "train_features.npy").resolve()),
+            )
+            self.assertEqual(
+                config.data["test_labels"],
+                str((data_dir / "test_labels.npy").resolve()),
+            )
+
+    def test_absolute_paths_are_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data_dir = self._write_split(root, "data")
+            absolute = str((data_dir / "train_features.npy").resolve())
+            config_path = root / "config.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "task": {"name": "absolute_task"},
+                        "data": {
+                            "format": "npy_split",
+                            "train_features": absolute,
+                            "train_labels": str(
+                                (data_dir / "train_labels.npy").resolve()
+                            ),
+                            "validation_features": str(
+                                (data_dir / "validation_features.npy").resolve()
+                            ),
+                            "validation_labels": str(
+                                (data_dir / "validation_labels.npy").resolve()
+                            ),
+                            "test_features": str(
+                                (data_dir / "test_features.npy").resolve()
+                            ),
+                            "test_labels": str(
+                                (data_dir / "test_labels.npy").resolve()
+                            ),
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            config = load_task_config(config_path)
+            self.assertEqual(config.data["train_features"], absolute)
+
+    def test_missing_relative_path_reports_the_resolved_location(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_path = root / "config.json"
+            expected = (root / "data" / "train_features.npy").resolve()
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "task": {"name": "missing_task"},
+                        "data": {
+                            "format": "npy_split",
+                            "train_features": "data/train_features.npy",
+                            "train_labels": "data/train_labels.npy",
+                            "validation_features": (
+                                "data/validation_features.npy"
+                            ),
+                            "validation_labels": (
+                                "data/validation_labels.npy"
+                            ),
+                            "test_features": "data/test_features.npy",
+                            "test_labels": "data/test_labels.npy",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(FileNotFoundError) as context:
+                load_task_config(config_path)
+            self.assertIn(str(expected), str(context.exception))
 
 
 if __name__ == "__main__":

@@ -80,6 +80,12 @@ def parse_args():
     return args
 
 
+def _format_metric_value(value):
+    if value is None:
+        return "not reported"
+    return f"{float(value):.6f}"
+
+
 def main():
     args = parse_args()
     if args.predict_run is not None:
@@ -107,11 +113,11 @@ def main():
         print(f"Selected experiment: {result.selected_experiment}")
         print(
             f"Validation {result.selection_metric}: "
-            f"{result.validation_metric_value:.6f}"
+            f"{_format_metric_value(result.validation_metric_value)}"
         )
         print(
             f"Test {result.selection_metric}: "
-            f"{result.test_metric_value:.6f}"
+            f"{_format_metric_value(result.test_metric_value)}"
         )
         print(f"Test samples: {result.test_samples}")
         print(f"Final model: {result.final_model_path}")
@@ -136,7 +142,7 @@ def main():
     print(f"Selected model: {summary['selected_model']}")
     print(
         f"Validation {summary['selection_metric']}: "
-        f"{summary['validation_metric_value']:.6f}"
+        f"{_format_metric_value(summary['validation_metric_value'])}"
     )
     print(f"Run directory: {summary['run_directory']}")
 

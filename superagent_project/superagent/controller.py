@@ -1,3 +1,4 @@
+import json
 import time
 import os
 from datetime import datetime
@@ -23,7 +24,7 @@ from superagent.logger import RunLogger
 from superagent.model_selector import (
     select_best_model,
 )
-from superagent.metrics import result_metric_value
+from superagent.metrics import metric_direction, result_metric_value
 from superagent.plan_validator import (
     PlanValidationError,
     PlanValidator,
@@ -31,9 +32,23 @@ from superagent.plan_validator import (
 from superagent.recovery import RunRecovery, RunState
 from superagent.stop_policy import StopPolicy
 from superagent.task_config import load_task_config
+from superagent.throughput_cache import (
+    ThroughputCache,
+    attach_measured_throughput,
+    measurement_from_result,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _format_metric_value(value):
+    # A selection metric can legitimately be missing (log_loss on a model with
+    # no predict_proba), and the run keeps going so the remaining experiments
+    # still get a chance to report it.
+    if value is None:
+        return "not reported"
+    return f"{float(value):.6f}"
 
 
 class SuperAgentController:
@@ -53,6 +68,11 @@ class SuperAgentController:
             planner_factory
             or build_experiment_planner
         )
+
+        # Measured per-epoch costs, shared across runs of the same task.  Filled
+        # lazily by ``_throughput_cache()`` so tests can construct a controller
+        # without touching the filesystem.
+        self._throughput_cache_instance = None
 
     def run(self):
         session_started = time.perf_counter()
@@ -108,6 +128,14 @@ class SuperAgentController:
 
         profile = DataInspector().inspect(
             config
+        )
+
+        # Measured throughput from earlier experiments (this run or a previous
+        # one on the same task) travels inside the profile, so the plan
+        # validator can gate on real numbers instead of calibrated constants.
+        profile = attach_measured_throughput(
+            profile,
+            self._throughput_cache().entries(),
         )
 
         logger.write_json(
@@ -227,14 +255,79 @@ class SuperAgentController:
                 "are available."
             )
 
+        # A baseline that violates a hard limit (for example an image plan whose
+        # estimated training time exceeds the experiment timeout) must not abort
+        # the whole run: the LLM planner can still propose something feasible.
+        # Skip it, record why, and continue with whatever survives.
         initial_plans = default_plans[
             :initial_count
         ]
 
-        initial_plans = validator.validate_many(
-            initial_plans,
-            data_profile=profile,
-        )
+        validated_initial_plans = []
+        seen_signatures = set()
+        for plan in initial_plans:
+            try:
+                validated_plan = validator.validate(
+                    plan,
+                    profile,
+                )
+            except PlanValidationError as error:
+                print(
+                    f"      {plan.experiment_id}: skipped; {error}"
+                )
+                logger.append_jsonl(
+                    "decisions.jsonl",
+                    {
+                        "timestamp": (
+                            datetime.now()
+                            .astimezone()
+                            .isoformat()
+                        ),
+                        "decision": (
+                            "skip_deterministic_experiment"
+                        ),
+                        "details": {
+                            "experiment_id": plan.experiment_id,
+                            "adapter_name": plan.adapter_name,
+                            "hyperparameters": (
+                                plan.hyperparameters
+                            ),
+                            "reason": str(error),
+                        },
+                    },
+                )
+                continue
+
+            signature = json.dumps(
+                {
+                    "adapter": validated_plan.adapter_name,
+                    "hyperparameters": (
+                        validated_plan.hyperparameters
+                    ),
+                },
+                sort_keys=True,
+            )
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            validated_initial_plans.append(validated_plan)
+
+        initial_plans = validated_initial_plans
+
+        if not initial_plans:
+            message = (
+                "No deterministic baseline plan fits the configured "
+                "resource limits."
+            )
+            if config.planner_mode != "llm":
+                raise ValueError(
+                    f"{message} Switch planner_mode to llm or relax the "
+                    "limits."
+                )
+            print(
+                f"      Warning: {message} "
+                "The planner will propose the first experiment."
+            )
 
         for plan in initial_plans:
             if any(
@@ -483,13 +576,16 @@ class SuperAgentController:
             ),
             "validation_macro_f1": best.f1_macro,
             "validation_balanced_accuracy": best.balanced_accuracy,
+            "validation_roc_auc": best.roc_auc,
+            "validation_log_loss": best.log_loss,
             "artifact_path": (
                 best.artifact_path
             ),
             "selected_automatically": True,
             "test_used_for_selection": False,
             "selection_rule": (
-                f"Highest validation {config.metric}; "
+                f"{'Lowest' if metric_direction(config.metric) < 0 else 'Highest'} "
+                f"validation {config.metric}; "
                 "shorter training time breaks "
                 "exact ties."
             ),
@@ -572,6 +668,8 @@ class SuperAgentController:
             ),
             "validation_macro_f1": best.f1_macro,
             "validation_balanced_accuracy": best.balanced_accuracy,
+            "validation_roc_auc": best.roc_auc,
+            "validation_log_loss": best.log_loss,
             "completed_experiments": len(
                 results
             ),
@@ -808,7 +906,7 @@ class SuperAgentController:
                     print(
                         "      Experiment completed; "
                         f"validation {config.metric}: "
-                        f"{metric_value:.6f}"
+                        f"{_format_metric_value(metric_value)}"
                     )
                 else:
                     error_key = self._experiment_error_key(
@@ -1003,7 +1101,7 @@ class SuperAgentController:
             metric_value = result_metric_value(result, config.metric)
             print(
                 f"      validation {config.metric}: "
-                f"{metric_value:.6f}"
+                f"{_format_metric_value(metric_value)}"
             )
         else:
             print(
@@ -1021,7 +1119,43 @@ class SuperAgentController:
                 },
             )
 
+        self._record_measured_throughput(
+            plan=plan,
+            profile=profile,
+            result=result,
+        )
+
         return result
+
+    def _throughput_cache(self):
+        if self._throughput_cache_instance is None:
+            self._throughput_cache_instance = ThroughputCache(
+                Path(self.runs_dir) / "throughput_cache.json"
+            )
+        return self._throughput_cache_instance
+
+    def _record_measured_throughput(self, plan, profile, result):
+        """Feed this experiment's real per-epoch cost back into the gate.
+
+        Only image experiments have a per-epoch cost model; tabular and text
+        adapters finish in one shot and are bounded by memory, not time.
+        """
+        if (profile or {}).get("modality") != "image":
+            return
+        entry = measurement_from_result(plan, profile, result)
+        if entry is None:
+            return
+        cache = self._throughput_cache()
+        cache.record(entry)
+        context = profile.get("execution_context")
+        if isinstance(context, dict):
+            context["measured_throughput"] = cache.entries()
+        print(
+            "      measured throughput: "
+            f"{entry['max_epoch_seconds']:.1f}s/epoch "
+            f"({entry['epochs_completed']} epochs, "
+            f"{entry['adapter_name']}@{entry['image_size']}px)"
+        )
 
     @staticmethod
     def _next_experiment_id(plans):

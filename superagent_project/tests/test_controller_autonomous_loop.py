@@ -17,6 +17,9 @@ from superagent.llm.experiment_planner import (
 )
 
 
+from tests import absolutize_config_paths
+
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -98,6 +101,10 @@ class ControllerAutonomousLoopTests(
             encoding="utf-8",
         ) as file:
             config = json.load(file)
+
+        config = absolutize_config_paths(
+            config, source_config_path.parent
+        )
 
         config["execution"][
             "planner_mode"

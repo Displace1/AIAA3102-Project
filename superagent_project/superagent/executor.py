@@ -15,6 +15,9 @@ from superagent.resource_monitor import (
 from superagent.result_analyzer import (
     ResultAnalyzer,
 )
+from superagent.runtime_environment import (
+    attach_experiment_deadline,
+)
 
 
 class ExperimentExecutor:
@@ -28,6 +31,15 @@ class ExperimentExecutor:
         experiment_dir,
     ):
         started_at = time.perf_counter()
+
+        # Publish an absolute deadline so the worker can stop at an epoch
+        # boundary and still return a usable model.  Without it the only
+        # protection is the hard kill below, which throws away every epoch the
+        # experiment already paid for.
+        budgeted_profile = attach_experiment_deadline(
+            data_profile,
+            config.experiment_timeout_seconds,
+        )
 
         process = None
         receive_connection = None
@@ -57,7 +69,7 @@ class ExperimentExecutor:
                     experiment_id,
                     plan,
                     config,
-                    data_profile,
+                    budgeted_profile,
                     experiment_dir,
                 ),
                 name=(

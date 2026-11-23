@@ -6,9 +6,9 @@
   },
   "data": {
     "format": "csv_split",
-    "train": "D:/python_project/Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/train.csv",
-    "validation": "D:/python_project/Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/val.csv",
-    "test": "D:/python_project/Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/test.csv",
+    "train": "../../Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/train.csv",
+    "validation": "../../Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/val.csv",
+    "test": "../../Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/test.csv",
     "target_column": "label_pairwise"
   },
   "execution": {

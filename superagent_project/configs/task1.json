@@ -6,12 +6,12 @@
   },
   "data": {
     "format": "npy_split",
-    "train_features": "D:/python_project/Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/C_train.npy",
-    "train_labels": "D:/python_project/Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/y_train.npy",
-    "validation_features": "D:/python_project/Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/C_val.npy",
-    "validation_labels": "D:/python_project/Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/y_val.npy",
-    "test_features": "D:/python_project/Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/C_test.npy",
-    "test_labels": "D:/python_project/Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/y_test.npy"
+    "train_features": "../../Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/C_train.npy",
+    "train_labels": "../../Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/y_train.npy",
+    "validation_features": "../../Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/C_val.npy",
+    "validation_labels": "../../Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/y_val.npy",
+    "test_features": "../../Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/C_test.npy",
+    "test_labels": "../../Released_Task1-In_Vehicle_Coupon_Recommendation/in_vehicle_coupon_recommendation/y_test.npy"
   },
   "execution": {
     "random_seed": 42,

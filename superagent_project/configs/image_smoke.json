@@ -6,9 +6,9 @@
   },
   "data": {
     "format": "image_directory_split",
-    "train_directory": "D:\\python_project\\superagent_project\\smoke_data\\synthetic_image\\train",
-    "validation_directory": "D:\\python_project\\superagent_project\\smoke_data\\synthetic_image\\validation",
-    "test_directory": "D:\\python_project\\superagent_project\\smoke_data\\synthetic_image\\test"
+    "train_directory": "../smoke_data/synthetic_image/train",
+    "validation_directory": "../smoke_data/synthetic_image/validation",
+    "test_directory": "../smoke_data/synthetic_image/test"
   },
   "execution": {
     "random_seed": 42,

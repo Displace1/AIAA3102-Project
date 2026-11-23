@@ -10,6 +10,7 @@ from sklearn.linear_model import LogisticRegression
 
 from adapters.base import ExperimentResult, ModelAdapter
 from superagent.evaluation import evaluate_classifier, result_metric_fields
+from superagent.label_encoding import encode_labels
 
 
 def load_text_pair_csv(path, feature_columns, target_column):
@@ -19,7 +20,7 @@ def load_text_pair_csv(path, feature_columns, target_column):
     return columns[0], columns[1], labels
 
 
-def load_text_csv(path, feature_columns, target_column):
+def load_text_csv(path, feature_columns, target_column, label_mapping=None):
     text_columns = [[] for _ in feature_columns]
     labels = []
 
@@ -28,9 +29,9 @@ def load_text_csv(path, feature_columns, target_column):
         for row in reader:
             for index, column in enumerate(feature_columns):
                 text_columns[index].append(row[column].strip())
-            labels.append(int(row[target_column]))
+            labels.append(row[target_column])
 
-    return text_columns, np.asarray(labels, dtype=int)
+    return text_columns, encode_labels(labels, label_mapping)
 
 
 def build_pair_features(vectorizer, first_texts, second_texts):
@@ -68,11 +69,15 @@ class TextPairBaselineAdapter(ModelAdapter):
         feature_columns = data_profile["feature_columns"]
         target_column = data_profile["target_column"]
 
+        label_mapping = data_profile.get("label_mapping")
         train_columns, y_train = load_text_csv(
-            config.data["train"], feature_columns, target_column
+            config.data["train"], feature_columns, target_column, label_mapping
         )
         val_columns, y_val = load_text_csv(
-            config.data["validation"], feature_columns, target_column
+            config.data["validation"],
+            feature_columns,
+            target_column,
+            label_mapping,
         )
 
         vectorizer = TfidfVectorizer(

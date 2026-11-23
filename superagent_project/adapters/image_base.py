@@ -16,6 +16,7 @@ from superagent.image_training import (
     select_training_device,
     train_image_classifier,
 )
+from superagent.runtime_environment import remaining_training_budget
 
 
 class ImageClassificationAdapter(ModelAdapter):
@@ -60,6 +61,12 @@ class ImageClassificationAdapter(ModelAdapter):
             number_of_classes=number_of_classes,
             hyperparameters=hyperparameters,
         )
+        execution_context = data_profile.get("execution_context") or {}
+        # ``None`` means "unbudgeted" and keeps the historical behaviour for
+        # direct adapter calls in tests and scripts.
+        time_budget_seconds = remaining_training_budget(
+            execution_context.get("wall_clock_deadline")
+        )
         training = train_image_classifier(
             model=model,
             data_loaders=loaders,
@@ -77,6 +84,7 @@ class ImageClassificationAdapter(ModelAdapter):
             ),
             backbone_parameters=backbone_parameters,
             metric=config.metric,
+            time_budget_seconds=time_budget_seconds,
         )
 
         device = select_training_device(training.device)
@@ -100,6 +108,8 @@ class ImageClassificationAdapter(ModelAdapter):
             "best_epoch": training.best_epoch,
             "epochs_completed": training.epochs_completed,
             "early_stopped": training.early_stopped,
+            "stopped_reason": training.stopped_reason,
+            "time_budget_seconds": training.time_budget_seconds,
             "peak_gpu_memory_mb": training.peak_gpu_memory_mb,
         }
         save_image_artifact(
@@ -146,6 +156,8 @@ class ImageClassificationAdapter(ModelAdapter):
             recall_macro=training.recall_macro,
             f1_macro=training.f1_macro,
             balanced_accuracy=training.balanced_accuracy,
+            roc_auc=training.roc_auc,
+            log_loss=training.log_loss,
             confusion_matrix=training.confusion_matrix,
             class_recall=training.class_recall,
             predicted_class_distribution=(
@@ -159,6 +171,11 @@ class ImageClassificationAdapter(ModelAdapter):
             best_epoch=training.best_epoch,
             peak_gpu_memory_mb=training.peak_gpu_memory_mb,
             early_stopped=training.early_stopped,
+            stopped_reason=training.stopped_reason,
+            epoch_seconds=[
+                round(float(record["epoch_seconds"]), 4)
+                for record in training.history
+            ],
             prediction_time_seconds=prediction_seconds,
             model_size_bytes=model_size_bytes,
         )

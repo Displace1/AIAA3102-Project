@@ -18,6 +18,8 @@ class ExperimentResult:
     recall_macro: Optional[float] = None
     f1_macro: Optional[float] = None
     balanced_accuracy: Optional[float] = None
+    roc_auc: Optional[float] = None
+    log_loss: Optional[float] = None
     confusion_matrix: Optional[list] = None
     class_recall: Optional[dict] = None
     predicted_class_distribution: Optional[dict] = None
@@ -27,6 +29,8 @@ class ExperimentResult:
     best_epoch: Optional[int] = None
     peak_gpu_memory_mb: Optional[float] = None
     early_stopped: Optional[bool] = None
+    stopped_reason: Optional[str] = None
+    epoch_seconds: Optional[list] = None
     prediction_time_seconds: Optional[float] = None
     feature_count: Optional[int] = None
     model_size_bytes: Optional[int] = None

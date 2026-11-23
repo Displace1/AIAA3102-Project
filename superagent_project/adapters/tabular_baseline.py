@@ -63,10 +63,14 @@ class TabularBaselineAdapter(ModelAdapter):
         categorical_preprocessing = hyperparameters.get(
             "categorical_preprocessing", "onehot"
         )
+        ordinal_preprocessing = hyperparameters.get(
+            "ordinal_preprocessing", "ordinal"
+        )
         preprocessor = build_tabular_preprocessor(
             data_profile,
             numeric_preprocessing=numeric_preprocessing,
             categorical_preprocessing=categorical_preprocessing,
+            ordinal_preprocessing=ordinal_preprocessing,
         )
 
         pipeline = Pipeline(
@@ -109,6 +113,7 @@ class TabularBaselineAdapter(ModelAdapter):
             **hyperparameters,
             "numeric_preprocessing": numeric_preprocessing,
             "categorical_preprocessing": categorical_preprocessing,
+            "ordinal_preprocessing": ordinal_preprocessing,
             "preprocessing": "type_aware_column_transformer",
             "classifier": "LogisticRegression",
             "random_seed": self.random_seed,

@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 
-from superagent.metrics import result_metric_value
+from superagent.metrics import (
+    is_metric_better,
+    metric_improvement,
+    result_metric_value,
+)
 
 
 @dataclass(frozen=True)
@@ -75,19 +79,19 @@ class StopPolicy:
         consecutive = 0
 
         for result in successful[1:]:
-            improvement = (
-                result_metric_value(result, self.metric)
-                - best_before
+            value = result_metric_value(result, self.metric)
+            # Direction-aware: a drop in log_loss counts as an improvement even
+            # though the raw number got smaller.
+            improvement = metric_improvement(
+                best_before, value, self.metric
             )
 
             if improvement >= self.minimum_improvement:
-                best_before = result.validation_accuracy
+                best_before = value
                 consecutive = 0
             else:
-                best_before = max(
-                    best_before,
-                    result_metric_value(result, self.metric),
-                )
+                if is_metric_better(value, best_before, self.metric):
+                    best_before = value
                 consecutive += 1
 
         return consecutive

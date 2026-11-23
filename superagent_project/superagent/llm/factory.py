@@ -82,6 +82,10 @@ def build_experiment_planner(
             "planner_response_attempts",
             3,
         ),
+        max_plan_repairs=llm_config.get(
+            "planner_plan_repairs",
+            2,
+        ),
     )
 
     return planner, budget_manager

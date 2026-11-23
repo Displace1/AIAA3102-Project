@@ -48,15 +48,27 @@ class TaskConfig:
     resource_poll_interval_seconds: float
 
 
-def _required_path(data, key):
+def _resolve_configured_path(value, base_dir=None):
+    """Resolve a configured path, treating relative values as config-relative.
+
+    Relative paths used to be resolved against the process working directory,
+    which made a config silently machine-dependent: copying the project to a
+    new folder broke every ``configs/*.json``.  Resolving against the config's
+    own directory keeps a checked-in config portable.
+    """
+    candidate = Path(value).expanduser()
+    if not candidate.is_absolute() and base_dir is not None:
+        candidate = Path(base_dir) / candidate
+    return candidate.resolve()
+
+
+def _required_path(data, key, base_dir=None):
     if key not in data:
         raise ValueError(
             f"Missing data configuration field: {key}"
         )
 
-    path = Path(
-        data[key]
-    ).expanduser().resolve()
+    path = _resolve_configured_path(data[key], base_dir)
 
     if not path.is_file():
         raise FileNotFoundError(
@@ -66,15 +78,13 @@ def _required_path(data, key):
     return str(path)
 
 
-def _required_directory(data, key):
+def _required_directory(data, key, base_dir=None):
     if key not in data:
         raise ValueError(
             f"Missing data configuration field: {key}"
         )
 
-    path = Path(
-        data[key]
-    ).expanduser().resolve()
+    path = _resolve_configured_path(data[key], base_dir)
 
     if not path.is_dir():
         raise FileNotFoundError(
@@ -208,7 +218,7 @@ def load_task_config(path):
 
     if metric not in SUPPORTED_METRICS:
         raise ValueError(
-            "task.metric must be one of: "
+            f"task.metric {metric!r} is not supported; it must be one of: "
             f"{sorted(SUPPORTED_METRICS)}"
         )
 
@@ -228,7 +238,7 @@ def load_task_config(path):
             "test_features",
             "test_labels",
         ):
-            data[key] = _required_path(data, key)
+            data[key] = _required_path(data, key, base_dir=path.parent)
 
     elif data_format == "csv_split":
         for key in (
@@ -236,14 +246,14 @@ def load_task_config(path):
             "validation",
             "test",
         ):
-            data[key] = _required_path(data, key)
+            data[key] = _required_path(data, key, base_dir=path.parent)
 
         columns = data.get("columns")
         if columns is not None:
             if not isinstance(columns, dict):
                 raise ValueError("data.columns must be an object.")
             unknown_column_groups = set(columns) - {
-                "text", "numeric", "categorical", "target"
+                "text", "numeric", "ordinal", "categorical", "target"
             }
             if unknown_column_groups:
                 raise ValueError(
@@ -257,7 +267,7 @@ def load_task_config(path):
                         "data.target_column and data.columns.target disagree."
                     )
                 data["target_column"] = declared_target
-            for group in ("text", "numeric", "categorical"):
+            for group in ("text", "numeric", "ordinal", "categorical"):
                 value = columns.get(group, [])
                 if not isinstance(value, list) or not all(
                     isinstance(column, str) and column for column in value
@@ -277,7 +287,7 @@ def load_task_config(path):
             "validation_directory",
             "test_directory",
         ):
-            data[key] = _required_directory(data, key)
+            data[key] = _required_directory(data, key, base_dir=path.parent)
 
     else:
         raise ValueError(
