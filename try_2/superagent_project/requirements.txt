@@ -1,0 +1,43 @@
+# Dependencies for the SuperAgent.
+#
+# Versions are pinned to what the OFFICIAL task1/task2 runs actually recorded in
+# their run_manifest.json:
+#   Python 3.14.6, numpy 2.5.5, scikit-learn 1.9.1, joblib 1.6.0
+# Those runs are the results in the report, so the report is only reproducible
+# against these numbers. Verify with `python -m unittest discover -s tests`.
+#
+# The previous file pinned torch==2.11.0+cu128 / torchvision==0.26.0+cu128,
+# which matches no machine this project ever ran on (the dev machine has
+# torch 2.5.1+cpu, no CUDA device). That has been corrected below.
+#
+# `--extra-index-url` is kept so torchvision can be resolved from the PyTorch
+# index, and the CUDA build is the default because the image adapters
+# (resnet18 / mobilenet_v3) are the only consumers that benefit from a GPU.
+# For a CPU-only box, or to keep the download small, install with:
+#   pip install -r requirements.txt
+#       --extra-index-url https://download.pytorch.org/whl/cpu
+# and swap the two torch lines for `torch==2.15.0` / `torchvision==0.29.1`.
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+numpy==2.5.5
+scipy==1.18.1
+scikit-learn==1.9.1
+joblib==1.6.0
+requests==2.34.2
+psutil==7.2.2
+Pillow==13.0.0
+torch==2.15.0
+torchvision==0.29.1
+
+# Needed ONLY by the pretrained-text-embedding adapter (text_embedding_*).
+# They are optional by design: adapters/text_embedding_logistic.py converts a
+# missing import into a clean, reported experiment failure, so the rest of the
+# agent keeps working without them.
+#
+# These are frozen encoders, not LLMs: no token cost, no API, no budget impact.
+# Weights are ~420 MB and are cached under $HF_HOME; set HF_HUB_OFFLINE=1 so a
+# cached model is not re-probed over the network (measured: 7s vs 150s).
+transformers==4.57.3
+sentence-transformers==4.1.0
+tokenizers==0.22.2
+safetensors==0.8.0

@@ -18,6 +18,15 @@ During an official autonomous run, students do not modify the code or configurat
 
 > **Current scope:** classification with `accuracy`, `macro_f1`, or `balanced_accuracy` as the validation selection metric. The data provider must supply predefined training, validation, and test splits in one of the supported formats. Data inspection and modeling are performed by the Agent after the run starts; raw-data collection and split creation are outside the autonomous run.
 
+Later attempts live in their own directories. Each one contains only the runnable SuperAgent (`superagent_project/`), not experiment outputs or analysis notes. The `superagent_project/` at the repository root is the earlier implementation, before those attempts.
+
+| Directory | What the agent adds |
+| --- | --- |
+| `try_2/` | HistGradientBoosting, decision thresholds, class-weight gating, target encoding |
+| `try_3/` | try_2, plus selection annotations and training-set cross-validation |
+| `try_4/` | try_3, plus pretrained text-embedding adapters and the embedding cache |
+| `try_5/` | same agent code as `try_4/`; this attempt did not change the implementation |
+
 ## 1. Submission contents
 
 The main implementation is in `superagent_project/`.

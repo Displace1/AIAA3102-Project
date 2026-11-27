@@ -1,0 +1,54 @@
+{
+  "pricing_snapshot_date": "2026-10-21",
+  "currency": "RMB",
+  "task_budget_rmb": "20.00",
+  "exploration_limit_rmb": "18.50",
+  "accounting_rules": {
+    "use_platform_price": false,
+    "use_cache_discount": false,
+    "use_promotions": false,
+    "use_free_credits": false,
+    "deepseek_pricing_period": "official_off_peak",
+    "pricing_independent_of_actual_call_time": true
+  },
+  "models": {
+    "DeepSeek-V4.1-Flash": {
+      "platform_model_name": "DeepSeek-V4.1-Flash",
+      "official_model_id": "deepseek-flash",
+      "official_model_version": "DeepSeek-V4.1-Flash-1017",
+      "input_rmb_per_million_tokens": "1.00",
+      "output_rmb_per_million_tokens": "4.00",
+      "input_pricing_rule": "official_off_peak_cache_miss",
+      "output_pricing_rule": "official_off_peak",
+      "official_source": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+      "release_date": "2026-10-17",
+      "pricing_date": "2026-10-21",
+      "verified": true
+    },
+    "DeepSeek-V4-Pro": {
+      "platform_model_name": "DeepSeek-V4-Pro",
+      "official_model_id": "deepseek-v4-pro",
+      "official_model_version": "DeepSeek-V4-Pro-0813",
+      "input_rmb_per_million_tokens": "4.50",
+      "output_rmb_per_million_tokens": "13.50",
+      "input_pricing_rule": "official_off_peak_cache_miss",
+      "output_pricing_rule": "official_off_peak",
+      "official_source": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+      "release_date": "2026-08-13",
+      "pricing_date": "2026-10-21",
+      "verified": true
+    },
+    "Qwen3.8-27B": {
+      "platform_model_name": "Qwen3.8-27B",
+      "platform_backend_model": "Qwen3.8-27B-w8a8",
+      "official_model_id": "qwen3.8-27b",
+      "input_rmb_per_million_tokens": "3.00",
+      "output_rmb_per_million_tokens": "12.00",
+      "input_pricing_rule": "official_standard_no_cache_discount",
+      "output_pricing_rule": "official_standard",
+      "official_source": "https://help.aliyun.com/en/model-studio/model-pricing",
+      "pricing_date": "2026-10-21",
+      "verified": true
+    }
+  }
+}

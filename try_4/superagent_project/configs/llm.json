@@ -1,0 +1,15 @@
+{
+  "endpoint": "https://aigc-api.hkust-gz.edu.cn/api/v2/chat/completions",
+  "model": "DeepSeek-V4.1-Flash",
+  "timeout_seconds": 120,
+  "max_retries": 3,
+  "retry_base_seconds": 1,
+  "retry_max_seconds": 8,
+  "temperature": 0.2,
+  "max_tokens": 500,
+  "planner_temperature": 0.1,
+  "planner_max_tokens": 2048,
+  "planner_response_attempts": 3,
+  "planner_plan_repairs": 2,
+  "api_key_environment_variable": "AIGC_API_KEY"
+}

@@ -1,0 +1,30 @@
+{
+  "run_type": "official_report_run",
+  "task": {
+    "name": "released_task_2",
+    "metric": "accuracy"
+  },
+  "data": {
+    "format": "csv_split",
+    "train": "../../Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/train.csv",
+    "validation": "../../Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/val.csv",
+    "test": "../../Released_Task2-Headlines_CTR/Released_Task2-Headlines_CTR/test.csv",
+    "target_column": "label_pairwise"
+  },
+  "execution": {
+    "random_seed": 42,
+    "evaluate_test": false,
+    "planner_mode": "llm",
+    "initial_deterministic_experiments": 2,
+    "max_experiments": 8,
+    "max_runtime_minutes": 180,
+    "no_improvement_patience": 3,
+    "minimum_improvement": 0.001,
+    "maximum_planner_errors": 2,
+    "maximum_same_experiment_errors": 2,
+    "experiment_timeout_seconds": 1800,
+    "maximum_memory_mb": 4096,
+    "maximum_cpu_threads": 2,
+    "resource_poll_interval_seconds": 0.2
+  }
+}
